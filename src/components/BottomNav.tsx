@@ -1,64 +1,100 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  LayoutDashboard, 
+  Home, 
   CreditCard, 
   ArrowLeftRight, 
-  Target, 
-  Mic 
+  Mic,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Home' },
-  { path: '/card', icon: CreditCard, label: 'Cartão' },
+  { path: '/dashboard', icon: Home, label: 'Home' },
   { path: '/transactions', icon: ArrowLeftRight, label: 'Transações' },
-  { path: '/goals', icon: Target, label: 'Metas' },
-  { path: '/ai', icon: Mic, label: 'IA' },
+  { path: '/ai', icon: Mic, label: 'AI Voice', isCenter: true },
+  { path: '/card', icon: CreditCard, label: 'Cartão' },
+  { path: '/goals', icon: User, label: 'Perfil' },
 ];
 
 export function BottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="floating-nav">
-      {navItems.map((item) => {
-        const isActive = location.pathname === item.path;
-        const Icon = item.icon;
+    <nav className="fixed bottom-0 left-0 right-0 z-50">
+      {/* Background */}
+      <div className="absolute inset-0 bg-[#f5f5f0] dark:bg-[#1a1a1a] rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)]" />
+      
+      {/* Nav Items */}
+      <div className="relative flex items-end justify-around px-2 pb-6 pt-3">
+        {navItems.map((item) => {
+          const isActive = location.pathname === item.path || 
+            (item.path === '/dashboard' && location.pathname === '/');
+          const Icon = item.icon;
 
-        return (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={cn(
-              "relative flex flex-col items-center justify-center w-14 h-14 rounded-full transition-all duration-300",
-              isActive 
-                ? "text-primary" 
-                : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {isActive && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-primary/20 rounded-full"
-                transition={{ type: "spring", duration: 0.5 }}
+          // Center floating button for AI Voice
+          if (item.isCenter) {
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className="relative flex flex-col items-center -mt-8"
+              >
+                <motion.div
+                  whileTap={{ scale: 0.95 }}
+                  className={cn(
+                    "w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all duration-300",
+                    isActive 
+                      ? "bg-primary shadow-primary/40" 
+                      : "bg-[#6366f1] shadow-[#6366f1]/30"
+                  )}
+                >
+                  <Icon className="w-7 h-7 text-white" />
+                </motion.div>
+                <span className={cn(
+                  "text-[11px] mt-2 font-medium transition-colors",
+                  isActive ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {item.label}
+                </span>
+              </NavLink>
+            );
+          }
+
+          return (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className="relative flex flex-col items-center justify-center w-16 py-1"
+            >
+              <Icon 
+                className={cn(
+                  "w-6 h-6 transition-colors duration-200",
+                  isActive ? "text-[#1a1a2e] dark:text-white" : "text-muted-foreground"
+                )} 
               />
-            )}
-            <Icon 
-              className={cn(
-                "w-5 h-5 relative z-10 transition-transform duration-200",
-                isActive && "scale-110"
-              )} 
-            />
-            <span className={cn(
-              "text-[10px] mt-0.5 relative z-10 font-medium",
-              isActive ? "opacity-100" : "opacity-70"
-            )}>
-              {item.label}
-            </span>
-          </NavLink>
-        );
-      })}
+              <span className={cn(
+                "text-[11px] mt-1 font-medium transition-colors",
+                isActive ? "text-[#1a1a2e] dark:text-white" : "text-muted-foreground"
+              )}>
+                {item.label}
+              </span>
+              
+              {/* Active indicator line */}
+              {isActive && (
+                <motion.div
+                  layoutId="activeIndicator"
+                  className="absolute -bottom-1 w-6 h-0.5 bg-[#1a1a2e] dark:bg-white rounded-full"
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                />
+              )}
+            </NavLink>
+          );
+        })}
+      </div>
+      
+      {/* Safe area for mobile */}
+      <div className="h-safe-area-inset-bottom bg-[#f5f5f0] dark:bg-[#1a1a1a]" />
     </nav>
   );
 }
