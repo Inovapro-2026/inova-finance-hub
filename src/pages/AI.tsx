@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Bot, User, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, MicOff, Send, Sparkles, Bot, User, CheckCircle2, Volume2, VolumeX, Zap, Brain, Cpu } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -298,133 +298,239 @@ export default function AI() {
 
   return (
     <motion.div
-      className="min-h-screen pb-28 px-4 pt-6 flex flex-col"
+      className="min-h-screen pb-28 px-4 pt-6 flex flex-col relative overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
+      {/* Background Effects */}
+      <div className="absolute inset-0 grid-pattern opacity-50" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-40 right-0 w-64 h-64 bg-secondary/10 rounded-full blur-3xl" />
+      
+      {/* Floating Particles */}
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="particle"
+          style={{
+            left: `${15 + i * 15}%`,
+            bottom: '20%',
+            animationDelay: `${i * 0.7}s`,
+          }}
+        />
+      ))}
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <motion.div 
+        className="flex items-center justify-between mb-6 relative z-10"
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.1 }}
+      >
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center glow-primary">
-            <Sparkles className="w-7 h-7" />
+          {/* Animated AI Icon */}
+          <div className="relative">
+            <motion.div 
+              className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center"
+              animate={{ 
+                boxShadow: [
+                  '0 0 20px hsl(254 90% 67% / 0.4)',
+                  '0 0 40px hsl(254 90% 67% / 0.6)',
+                  '0 0 20px hsl(254 90% 67% / 0.4)',
+                ]
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Brain className="w-8 h-8 brain-pulse" />
+            </motion.div>
+            {/* Orbiting dots */}
+            <div className="absolute inset-0 orbit">
+              <div className="absolute -top-1 left-1/2 w-2 h-2 bg-primary rounded-full" />
+            </div>
+            <div className="absolute inset-0 orbit-reverse">
+              <div className="absolute -bottom-1 left-1/2 w-1.5 h-1.5 bg-secondary rounded-full" />
+            </div>
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold">Assistente IA</h1>
-            <p className="text-muted-foreground text-sm flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full animate-pulse ${isSpeaking ? 'bg-primary' : 'bg-green-500'}`} />
-              {isSpeaking ? 'Falando...' : 'Powered by Gemini'}
+            <h1 className="font-display text-2xl font-bold flex items-center gap-2">
+              NOVA
+              <Cpu className="w-4 h-4 text-primary" />
+            </h1>
+            <p className="text-muted-foreground text-sm flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${isSpeaking ? 'bg-primary animate-pulse' : isLoading ? 'bg-yellow-500 animate-pulse' : 'bg-green-500'}`} />
+              {isSpeaking ? 'Falando...' : isLoading ? 'Processando...' : 'Pronta para ajudar'}
             </p>
           </div>
         </div>
         
         {/* Voice Toggle */}
-        <button
+        <motion.button
           onClick={() => {
             if (isSpeaking) stopSpeaking();
             setVoiceEnabled(!voiceEnabled);
             toast.info(voiceEnabled ? 'Voz desativada' : 'Voz ativada');
           }}
-          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-            voiceEnabled ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all border ${
+            voiceEnabled 
+              ? 'bg-primary/20 text-primary border-primary/30' 
+              : 'bg-muted/50 text-muted-foreground border-muted'
           }`}
+          whileTap={{ scale: 0.95 }}
         >
           {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Speaking Indicator */}
-      {isSpeaking && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="mb-4"
-        >
-          <GlassCard className="p-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex gap-0.5">
-                {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-1 bg-primary rounded-full animate-pulse"
-                    style={{ 
-                      height: `${12 + Math.random() * 12}px`,
-                      animationDelay: `${i * 0.15}s` 
-                    }}
-                  />
-                ))}
+      <AnimatePresence>
+        {isSpeaking && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            className="mb-4 relative z-10"
+          >
+            <div className="ai-tech-card p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex gap-1 items-end h-8">
+                  {[...Array(5)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1.5 bg-gradient-to-t from-primary to-secondary rounded-full"
+                      animate={{ 
+                        height: [8, 24, 12, 28, 8],
+                      }}
+                      transition={{ 
+                        duration: 1,
+                        repeat: Infinity,
+                        delay: i * 0.1,
+                      }}
+                    />
+                  ))}
+                </div>
+                <div>
+                  <span className="text-sm font-medium">NOVA está falando</span>
+                  <p className="text-xs text-muted-foreground">Voz: Brian (Deep)</p>
+                </div>
               </div>
-              <span className="text-sm text-muted-foreground">NOVA está falando...</span>
+              <button
+                onClick={stopSpeaking}
+                className="px-3 py-1.5 text-xs bg-destructive/20 text-destructive rounded-lg hover:bg-destructive/30 transition-colors"
+              >
+                Parar
+              </button>
             </div>
-            <button
-              onClick={stopSpeaking}
-              className="text-xs text-destructive hover:underline"
-            >
-              Parar
-            </button>
-          </GlassCard>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Voice Wave Indicator */}
-      {isListening && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          className="mb-6"
-        >
-          <GlassCard className="p-6 flex items-center justify-center gap-1">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className="wave-bar"
-                style={{ animationDelay: `${i * 0.1}s` }}
-              />
-            ))}
-            <span className="ml-4 text-sm text-muted-foreground">Ouvindo...</span>
-          </GlassCard>
-        </motion.div>
-      )}
+      {/* Voice Wave Indicator - Enhanced */}
+      <AnimatePresence>
+        {isListening && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="mb-6 relative z-10"
+          >
+            <div className="ai-tech-card p-8 relative overflow-hidden">
+              {/* Scanning line effect */}
+              <div className="scan-line" />
+              
+              {/* Center mic visualization */}
+              <div className="flex flex-col items-center justify-center gap-4">
+                <div className="relative">
+                  {/* Pulsing rings */}
+                  <div className="pulse-ring w-24 h-24 -inset-2" style={{ animationDelay: '0s' }} />
+                  <div className="pulse-ring w-32 h-32 -inset-6" style={{ animationDelay: '0.5s' }} />
+                  <div className="pulse-ring w-40 h-40 -inset-10" style={{ animationDelay: '1s' }} />
+                  
+                  <motion.div 
+                    className="relative w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center"
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      boxShadow: [
+                        '0 0 30px hsl(254 90% 67% / 0.5)',
+                        '0 0 60px hsl(254 90% 67% / 0.8)',
+                        '0 0 30px hsl(254 90% 67% / 0.5)',
+                      ]
+                    }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <Mic className="w-8 h-8" />
+                  </motion.div>
+                </div>
+                
+                <div className="flex gap-1 items-end h-12">
+                  {[...Array(9)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-1 bg-gradient-to-t from-primary/60 to-primary rounded-full"
+                      animate={{ 
+                        height: [4, 32, 16, 40, 8, 28, 4],
+                      }}
+                      transition={{ 
+                        duration: 1.2,
+                        repeat: Infinity,
+                        delay: i * 0.08,
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  Ouvindo sua voz...
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+      <div className="flex-1 overflow-y-auto space-y-4 mb-4 relative z-10">
         {messages.map((message, index) => (
           <motion.div
             key={message.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: index * 0.05, type: 'spring', stiffness: 200 }}
             className={`flex gap-3 ${
               message.role === 'user' ? 'flex-row-reverse' : ''
             }`}
           >
-            <div
+            <motion.div
               className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                 message.role === 'assistant'
-                  ? 'bg-gradient-primary'
-                  : 'bg-muted'
+                  ? 'bg-gradient-to-br from-primary to-secondary'
+                  : 'bg-muted border border-border'
               }`}
+              whileHover={{ scale: 1.1 }}
             >
               {message.role === 'assistant' ? (
                 <Bot className="w-5 h-5" />
               ) : (
                 <User className="w-5 h-5" />
               )}
-            </div>
+            </motion.div>
             <div
               className={`max-w-[80%] rounded-2xl p-4 ${
                 message.role === 'assistant'
-                  ? 'glass-card'
-                  : 'bg-primary text-primary-foreground'
+                  ? 'ai-tech-card'
+                  : 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground'
               }`}
             >
               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               {message.transactionRegistered && (
-                <div className="flex items-center gap-1 mt-2 text-xs text-green-400">
+                <motion.div 
+                  className="flex items-center gap-1 mt-2 text-xs text-green-400"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                >
                   <CheckCircle2 className="w-3 h-3" />
                   Transação salva
-                </div>
+                </motion.div>
               )}
             </div>
           </motion.div>
@@ -432,24 +538,30 @@ export default function AI() {
 
         {isLoading && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             className="flex gap-3"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
               <Bot className="w-5 h-5" />
             </div>
-            <div className="glass-card rounded-2xl p-4">
-              <div className="flex gap-1">
-                <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
-                <div
-                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                  style={{ animationDelay: '0.1s' }}
-                />
-                <div
-                  className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                  style={{ animationDelay: '0.2s' }}
-                />
+            <div className="ai-tech-card rounded-2xl p-4">
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
+                    key={i}
+                    className="w-2.5 h-2.5 bg-primary rounded-full"
+                    animate={{ 
+                      y: [0, -8, 0],
+                      opacity: [0.5, 1, 0.5],
+                    }}
+                    transition={{ 
+                      duration: 0.8, 
+                      repeat: Infinity,
+                      delay: i * 0.15,
+                    }}
+                  />
+                ))}
               </div>
             </div>
           </motion.div>
@@ -458,56 +570,71 @@ export default function AI() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="flex gap-3">
-        <button
+      {/* Input Area - Enhanced */}
+      <motion.div 
+        className="flex gap-3 relative z-10"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        <motion.button
           onClick={toggleListening}
-          className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all border-2 ${
             isListening
-              ? 'bg-destructive text-white animate-pulse'
-              : 'bg-muted hover:bg-muted/80'
+              ? 'bg-gradient-to-br from-destructive to-destructive/80 text-white border-destructive shadow-lg shadow-destructive/30'
+              : 'bg-muted/50 hover:bg-muted border-border hover:border-primary/50'
           }`}
+          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.05 }}
         >
           {isListening ? (
-            <MicOff className="w-5 h-5" />
+            <MicOff className="w-6 h-6" />
           ) : (
-            <Mic className="w-5 h-5" />
+            <Mic className="w-6 h-6" />
           )}
-        </button>
+        </motion.button>
         <div className="flex-1 relative">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Digite ou fale sua mensagem..."
-            className="h-12 pr-12 bg-muted/50 border-border rounded-xl"
+            className="h-14 pr-14 bg-muted/30 border-border hover:border-primary/50 focus:border-primary rounded-2xl text-base backdrop-blur-sm"
           />
-          <button
+          <motion.button
             data-submit-btn
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center disabled:opacity-50"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
           >
-            <Send className="w-4 h-4" />
-          </button>
+            <Send className="w-5 h-5" />
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Tips */}
+      {/* Tips - Enhanced */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="mt-4 flex gap-2 overflow-x-auto pb-2"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="mt-4 flex gap-2 overflow-x-auto pb-2 relative z-10"
       >
-        {['Gastei 30 no almoço', 'Qual meu saldo?', 'Resumo do mês'].map((tip) => (
-          <button
+        {['Gastei 30 no almoço', 'Qual meu saldo?', 'Resumo do mês'].map((tip, i) => (
+          <motion.button
             key={tip}
             onClick={() => setInput(tip)}
-            className="px-3 py-1.5 text-xs bg-muted/50 rounded-full whitespace-nowrap hover:bg-muted transition-colors"
+            className="px-4 py-2 text-xs bg-muted/30 rounded-full whitespace-nowrap hover:bg-primary/20 hover:text-primary transition-all border border-transparent hover:border-primary/30 backdrop-blur-sm"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.5 + i * 0.1 }}
           >
+            <Sparkles className="w-3 h-3 inline mr-1.5" />
             {tip}
-          </button>
+          </motion.button>
         ))}
       </motion.div>
     </motion.div>
