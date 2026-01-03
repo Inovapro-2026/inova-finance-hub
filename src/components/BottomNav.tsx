@@ -10,7 +10,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { path: '/dashboard', icon: Home, label: 'Home' },
+  { path: '/', icon: Home, label: 'Home' },
   { path: '/transactions', icon: ArrowLeftRight, label: 'Transações' },
   { path: '/ai', icon: Mic, label: 'AI Voice', isCenter: true },
   { path: '/card', icon: CreditCard, label: 'Cartão' },
@@ -28,8 +28,7 @@ export function BottomNav() {
       {/* Nav Items */}
       <div className="relative flex items-end justify-around px-2 pb-6 pt-3">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-            (item.path === '/dashboard' && location.pathname === '/');
+          const isActive = location.pathname === item.path;
           const Icon = item.icon;
 
           // Center floating button for AI Voice
