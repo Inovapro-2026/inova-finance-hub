@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Bot, User, CheckCircle2 } from 'lucide-react';
+import { Mic, MicOff, Send, Sparkles, Bot, User, CheckCircle2, Volume2, VolumeX } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,8 +32,71 @@ export default function AI() {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+
+  // Text-to-Speech function
+  const speak = useCallback((text: string) => {
+    if (!voiceEnabled || !('speechSynthesis' in window)) return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // Clean text for speech (remove emojis and markdown)
+    const cleanText = text
+      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+      .replace(/\*\*/g, '')
+      .replace(/\n+/g, '. ')
+      .replace(/•/g, '')
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Try to get a Brazilian Portuguese voice
+    const voices = window.speechSynthesis.getVoices();
+    const ptBRVoice = voices.find(v => v.lang.includes('pt-BR')) || 
+                      voices.find(v => v.lang.includes('pt')) ||
+                      voices[0];
+    if (ptBRVoice) {
+      utterance.voice = ptBRVoice;
+    }
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    speechSynthRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
+  }, [voiceEnabled]);
+
+  // Stop speaking
+  const stopSpeaking = useCallback(() => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }, []);
+
+  // Load voices when available
+  useEffect(() => {
+    const loadVoices = () => {
+      window.speechSynthesis.getVoices();
+    };
+    
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   // Initialize with welcome message
   useEffect(() => {
@@ -137,6 +200,9 @@ export default function AI() {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
+
+      // Speak the response
+      speak(data.message);
     } catch (error) {
       console.error('Error calling AI:', error);
       
@@ -210,18 +276,68 @@ export default function AI() {
       animate={{ opacity: 1 }}
     >
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center glow-primary">
-          <Sparkles className="w-7 h-7" />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center glow-primary">
+            <Sparkles className="w-7 h-7" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl font-bold">Assistente IA</h1>
+            <p className="text-muted-foreground text-sm flex items-center gap-1">
+              <span className={`w-2 h-2 rounded-full animate-pulse ${isSpeaking ? 'bg-primary' : 'bg-green-500'}`} />
+              {isSpeaking ? 'Falando...' : 'Powered by Gemini'}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="font-display text-2xl font-bold">Assistente IA</h1>
-          <p className="text-muted-foreground text-sm flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            Powered by Gemini
-          </p>
-        </div>
+        
+        {/* Voice Toggle */}
+        <button
+          onClick={() => {
+            if (isSpeaking) stopSpeaking();
+            setVoiceEnabled(!voiceEnabled);
+            toast.info(voiceEnabled ? 'Voz desativada' : 'Voz ativada');
+          }}
+          className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+            voiceEnabled ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+          }`}
+        >
+          {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+        </button>
       </div>
+
+      {/* Speaking Indicator */}
+      {isSpeaking && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mb-4"
+        >
+          <GlassCard className="p-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex gap-0.5">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-1 bg-primary rounded-full animate-pulse"
+                    style={{ 
+                      height: `${12 + Math.random() * 12}px`,
+                      animationDelay: `${i * 0.15}s` 
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">NOVA está falando...</span>
+            </div>
+            <button
+              onClick={stopSpeaking}
+              className="text-xs text-destructive hover:underline"
+            >
+              Parar
+            </button>
+          </GlassCard>
+        </motion.div>
+      )}
 
       {/* Voice Wave Indicator */}
       {isListening && (
