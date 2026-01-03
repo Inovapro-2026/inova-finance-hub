@@ -1,31 +1,81 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Bot, User } from 'lucide-react';
+import { Mic, MicOff, Send, Sparkles, Bot, User, CheckCircle2 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { calculateBalance, getTransactions, addTransaction, type Transaction } from '@/lib/db';
+import { toast } from 'sonner';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  transactionRegistered?: boolean;
+}
+
+interface FinancialContext {
+  balance: number;
+  totalIncome: number;
+  totalExpense: number;
+  recentTransactions: Array<{
+    amount: number;
+    type: string;
+    category: string;
+    description: string;
+  }>;
 }
 
 export default function AI() {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: `Olá ${user?.fullName.split(' ')[0]}! 👋 Sou sua assistente financeira. Posso ajudar você a registrar transações, consultar seu saldo e dar dicas personalizadas. Como posso ajudar?`,
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Initialize with welcome message
+  useEffect(() => {
+    if (user && messages.length === 0) {
+      setMessages([
+        {
+          id: '1',
+          role: 'assistant',
+          content: `Olá ${user.fullName.split(' ')[0]}! 👋 Sou a NOVA, sua assistente financeira inteligente.\n\n💬 Você pode me dizer coisas como:\n• "Gastei 50 com pizza"\n• "Recebi 1000 de salário"\n• "Qual meu saldo?"\n• "Me dá um resumo financeiro"\n\n🎤 Ou use o microfone para falar comigo!`,
+        },
+      ]);
+    }
+  }, [user, messages.length]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Get financial context for the AI
+  const getFinancialContext = async (): Promise<FinancialContext> => {
+    if (!user) {
+      return { balance: 0, totalIncome: 0, totalExpense: 0, recentTransactions: [] };
+    }
+
+    const { balance, totalIncome, totalExpense } = await calculateBalance(
+      user.userId,
+      user.initialBalance
+    );
+    const transactions = await getTransactions(user.userId);
+    const recentTransactions = transactions.slice(0, 10).map((t) => ({
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+      description: t.description,
+    }));
+
+    return { balance, totalIncome, totalExpense, recentTransactions };
+  };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !user) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -37,30 +87,120 @@ export default function AI() {
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI response (replace with actual Gemini integration when Cloud is enabled)
-    setTimeout(() => {
-      const responses = [
-        'Entendi! Para registrar essa transação, vá até a aba de Transações e clique no botão +.',
-        'Seu saldo atual está disponível no Dashboard. Quer que eu te dê uma análise detalhada?',
-        'Baseado nas suas transações, você está gastando mais com alimentação. Considere definir um orçamento mensal.',
-        'Ótima pergunta! Para criar uma meta de economia, acesse a aba Metas e defina seu objetivo.',
-        'Posso ajudar você a organizar melhor suas finanças. Que tal começarmos definindo suas prioridades?',
-      ];
+    try {
+      const context = await getFinancialContext();
+
+      const response = await fetch(
+        'https://pahvovxnhqsmcnqncmys.supabase.co/functions/v1/gemini-assistant',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: input,
+            context,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Check if a transaction was registered
+      if (data.functionCall?.name === 'record_transaction') {
+        const { args } = data.functionCall;
+        
+        // Save transaction to local database
+        await addTransaction({
+          amount: args.amount,
+          type: args.type as 'income' | 'expense',
+          category: args.category,
+          description: args.description,
+          date: new Date(),
+          userId: user.userId,
+        });
+
+        toast.success('Transação registrada!', {
+          description: `${args.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${args.amount.toFixed(2)}`,
+        });
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: responses[Math.floor(Math.random() * responses.length)],
+        content: data.message,
+        transactionRegistered: data.functionCall?.name === 'record_transaction',
       };
 
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Error calling AI:', error);
+      
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente em alguns segundos. 🔄',
+      };
+
+      setMessages((prev) => [...prev, errorMessage]);
+      toast.error('Erro ao conectar com a IA');
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const toggleListening = () => {
-    setIsListening(!isListening);
-    // Web Speech API would be implemented here when Cloud is enabled
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Reconhecimento de voz não suportado neste navegador');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      toast.info('Ouvindo...', { duration: 2000 });
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+      
+      // Auto-send after voice input
+      setTimeout(() => {
+        const submitBtn = document.querySelector('[data-submit-btn]') as HTMLButtonElement;
+        submitBtn?.click();
+      }, 500);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      toast.error('Erro no reconhecimento de voz');
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   return (
@@ -76,7 +216,10 @@ export default function AI() {
         </div>
         <div>
           <h1 className="font-display text-2xl font-bold">Assistente IA</h1>
-          <p className="text-muted-foreground text-sm">Powered by Gemini</p>
+          <p className="text-muted-foreground text-sm flex items-center gap-1">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            Powered by Gemini
+          </p>
         </div>
       </div>
 
@@ -96,6 +239,7 @@ export default function AI() {
                 style={{ animationDelay: `${i * 0.1}s` }}
               />
             ))}
+            <span className="ml-4 text-sm text-muted-foreground">Ouvindo...</span>
           </GlassCard>
         </motion.div>
       )}
@@ -107,7 +251,7 @@ export default function AI() {
             key={message.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.05 }}
             className={`flex gap-3 ${
               message.role === 'user' ? 'flex-row-reverse' : ''
             }`}
@@ -126,13 +270,19 @@ export default function AI() {
               )}
             </div>
             <div
-              className={`max-w-[75%] rounded-2xl p-4 ${
+              className={`max-w-[80%] rounded-2xl p-4 ${
                 message.role === 'assistant'
                   ? 'glass-card'
                   : 'bg-primary text-primary-foreground'
               }`}
             >
-              <p className="text-sm">{message.content}</p>
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {message.transactionRegistered && (
+                <div className="flex items-center gap-1 mt-2 text-xs text-green-400">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Transação salva
+                </div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -161,6 +311,8 @@ export default function AI() {
             </div>
           </motion.div>
         )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
@@ -184,10 +336,11 @@ export default function AI() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Digite sua mensagem..."
+            placeholder="Digite ou fale sua mensagem..."
             className="h-12 pr-12 bg-muted/50 border-border rounded-xl"
           />
           <button
+            data-submit-btn
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
             className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center disabled:opacity-50"
@@ -197,17 +350,31 @@ export default function AI() {
         </div>
       </div>
 
-      {/* Cloud Notice */}
+      {/* Tips */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
-        className="mt-4 text-center"
+        className="mt-4 flex gap-2 overflow-x-auto pb-2"
       >
-        <p className="text-xs text-muted-foreground">
-          💡 Ative o Lovable Cloud para funcionalidades completas de IA
-        </p>
+        {['Gastei 30 no almoço', 'Qual meu saldo?', 'Resumo do mês'].map((tip) => (
+          <button
+            key={tip}
+            onClick={() => setInput(tip)}
+            className="px-3 py-1.5 text-xs bg-muted/50 rounded-full whitespace-nowrap hover:bg-muted transition-colors"
+          >
+            {tip}
+          </button>
+        ))}
       </motion.div>
     </motion.div>
   );
+}
+
+// Add type declarations for Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
 }
