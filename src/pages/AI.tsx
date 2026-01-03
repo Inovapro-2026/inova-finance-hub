@@ -36,14 +36,11 @@ export default function AI() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
-  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Text-to-Speech function
-  const speak = useCallback((text: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
-
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
+  // Text-to-Speech function using ElevenLabs
+  const speak = useCallback(async (text: string) => {
+    if (!voiceEnabled) return;
 
     // Clean text for speech (remove emojis and markdown)
     const cleanText = text
@@ -53,32 +50,62 @@ export default function AI() {
       .replace(/•/g, '')
       .trim();
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'pt-BR';
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    if (!cleanText) return;
 
-    // Try to get a Brazilian Portuguese voice
-    const voices = window.speechSynthesis.getVoices();
-    const ptBRVoice = voices.find(v => v.lang.includes('pt-BR')) || 
-                      voices.find(v => v.lang.includes('pt')) ||
-                      voices[0];
-    if (ptBRVoice) {
-      utterance.voice = ptBRVoice;
+    try {
+      setIsSpeaking(true);
+
+      const response = await fetch(
+        'https://pahvovxnhqsmcnqncmys.supabase.co/functions/v1/elevenlabs-tts',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: cleanText }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Play audio using data URI
+      const audioUrl = `data:audio/mpeg;base64,${data.audioContent}`;
+      const audio = new Audio(audioUrl);
+      
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => setIsSpeaking(false);
+      
+      audioRef.current = audio;
+      await audio.play();
+    } catch (error) {
+      console.error('ElevenLabs TTS error:', error);
+      setIsSpeaking(false);
+      // Fallback to Web Speech API
+      fallbackSpeak(cleanText);
     }
+  }, [voiceEnabled]);
 
+  // Fallback to Web Speech API
+  const fallbackSpeak = (text: string) => {
+    if (!('speechSynthesis' in window)) return;
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    speechSynthRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [voiceEnabled]);
+  };
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
     window.speechSynthesis.cancel();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setIsSpeaking(false);
   }, []);
 
