@@ -212,6 +212,66 @@
   .wave-bar:nth-child(4) { animation-delay: 0.3s; }
   .wave-bar:nth-child(5) { animation-delay: 0.4s; }
 
+  /* AI Tech Card */
+  .ai-tech-card {
+    @apply relative overflow-hidden rounded-3xl;
+    background: linear-gradient(135deg, hsl(222 47% 10% / 0.9) 0%, hsl(222 47% 6% / 0.95) 100%);
+    border: 1px solid hsl(254 90% 67% / 0.2);
+    backdrop-filter: blur(20px);
+  }
+
+  .ai-tech-card::before {
+    content: '';
+    @apply absolute inset-0;
+    background: radial-gradient(ellipse at top center, hsl(254 90% 67% / 0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Pulsing Ring */
+  .pulse-ring {
+    @apply absolute rounded-full border-2 border-primary/50;
+    animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Orbit Animation */
+  .orbit {
+    animation: orbit 8s linear infinite;
+  }
+
+  .orbit-reverse {
+    animation: orbit 10s linear infinite reverse;
+  }
+
+  /* Glitch Text */
+  .glitch-text {
+    animation: glitch 3s infinite;
+  }
+
+  /* Grid Pattern */
+  .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(254 90% 67% / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(254 90% 67% / 0.03) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+
+  /* Scanning Line */
+  .scan-line {
+    @apply absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent;
+    animation: scan 3s ease-in-out infinite;
+  }
+
+  /* AI Brain Pulse */
+  .brain-pulse {
+    animation: brain-pulse 2s ease-in-out infinite;
+  }
+
+  /* Particle */
+  .particle {
+    @apply absolute w-1 h-1 bg-primary/60 rounded-full;
+    animation: particle-float 4s ease-in-out infinite;
+  }
+
   /* Bento Grid */
   .bento-grid {
     @apply grid gap-4;
@@ -251,6 +311,56 @@
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes glitch {
+  0%, 90%, 100% { transform: translate(0); }
+  92% { transform: translate(-2px, 2px); }
+  94% { transform: translate(2px, -2px); }
+  96% { transform: translate(-2px, -2px); }
+  98% { transform: translate(2px, 2px); }
+}
+
+@keyframes scan {
+  0%, 100% { top: 0; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes brain-pulse {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: drop-shadow(0 0 10px hsl(254 90% 67% / 0.5));
+  }
+  50% { 
+    transform: scale(1.05); 
+    filter: drop-shadow(0 0 20px hsl(254 90% 67% / 0.8));
+  }
+}
+
+@keyframes particle-float {
+  0%, 100% { 
+    transform: translateY(0) translateX(0);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { 
+    transform: translateY(-100px) translateX(20px);
+    opacity: 0;
+  }
 }
 
 /* Scrollbar Styling */

@@ -8,8 +8,8 @@ const corsHeaders = {
 
 const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
 
-// Laura - Female Brazilian Portuguese voice
-const VOICE_ID = 'FGY2WhTYpPnrIDTdsKH5';
+// Brian - Deep, resonant voice
+const VOICE_ID = 'nPczCjzI2devNBz1zQrb';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
