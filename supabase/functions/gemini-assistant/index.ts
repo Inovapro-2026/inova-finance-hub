@@ -5,12 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 interface RequestBody {
   message: string;
@@ -27,69 +22,73 @@ interface RequestBody {
   };
 }
 
-// Function definitions for Gemini
+// Tool definitions for OpenAI-compatible API
 const tools = [
   {
-    function_declarations: [
-      {
-        name: "record_transaction",
-        description: "Registra uma nova transação financeira (gasto ou ganho) do usuário. Use quando o usuário mencionar que gastou, comprou, recebeu ou ganhou dinheiro.",
-        parameters: {
-          type: "object",
-          properties: {
-            amount: {
-              type: "number",
-              description: "Valor da transação em reais (sempre positivo)"
-            },
-            type: {
-              type: "string",
-              enum: ["income", "expense"],
-              description: "Tipo: 'expense' para gastos, 'income' para ganhos"
-            },
-            category: {
-              type: "string",
-              enum: ["food", "transport", "entertainment", "shopping", "health", "education", "bills", "salary", "freelance", "investment", "gift", "other"],
-              description: "Categoria da transação"
-            },
-            description: {
-              type: "string",
-              description: "Descrição curta da transação"
-            }
+    type: "function",
+    function: {
+      name: "record_transaction",
+      description: "Registra uma nova transação financeira (gasto ou ganho) do usuário. Use quando o usuário mencionar que gastou, comprou, recebeu ou ganhou dinheiro.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: {
+            type: "number",
+            description: "Valor da transação em reais (sempre positivo)"
           },
-          required: ["amount", "type", "category", "description"]
-        }
-      },
-      {
-        name: "get_financial_summary",
-        description: "Retorna um resumo financeiro do usuário incluindo saldo, ganhos e gastos do mês atual.",
-        parameters: {
-          type: "object",
-          properties: {},
-          required: []
-        }
-      },
-      {
-        name: "get_current_balance",
-        description: "Retorna apenas o saldo atual do usuário.",
-        parameters: {
-          type: "object",
-          properties: {},
-          required: []
-        }
+          type: {
+            type: "string",
+            enum: ["income", "expense"],
+            description: "Tipo: 'expense' para gastos, 'income' para ganhos"
+          },
+          category: {
+            type: "string",
+            enum: ["food", "transport", "entertainment", "shopping", "health", "education", "bills", "salary", "freelance", "investment", "gift", "other"],
+            description: "Categoria da transação"
+          },
+          description: {
+            type: "string",
+            description: "Descrição curta da transação"
+          }
+        },
+        required: ["amount", "type", "category", "description"]
       }
-    ]
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_financial_summary",
+      description: "Retorna um resumo financeiro do usuário incluindo saldo, ganhos e gastos do mês atual.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_current_balance",
+      description: "Retorna apenas o saldo atual do usuário.",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
   }
 ];
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY não configurada');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY não configurada');
     }
 
     const { message, context }: RequestBody = await req.json();
@@ -116,7 +115,7 @@ CAPACIDADES:
 4. DICAS: Ofereça sugestões personalizadas baseadas nos gastos.
 
 MAPEAMENTO DE CATEGORIAS:
-- Alimentação/comida/restaurante/pizza/lanche → food
+- Alimentação/comida/restaurante/pizza/lanche/almoço/jantar/café → food
 - Transporte/uber/gasolina/ônibus → transport
 - Lazer/cinema/diversão/jogos → entertainment
 - Compras/roupa/sapato/loja → shopping
@@ -131,54 +130,70 @@ MAPEAMENTO DE CATEGORIAS:
 
 Responda sempre em português brasileiro de forma natural e concisa.`;
 
-    // First call to Gemini with function calling
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: systemPrompt + "\n\nMensagem do usuário: " + message }]
-            }
-          ],
-          tools: tools,
-          tool_config: {
-            function_calling_config: {
-              mode: "AUTO"
-            }
-          }
-        })
-      }
-    );
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: message }
+        ],
+        tools: tools,
+        tool_choice: 'auto'
+      })
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Gemini API error:', response.status, errorText);
-      throw new Error(`Gemini API error: ${response.status}`);
+      console.error('Lovable AI error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Rate limit exceeded',
+            message: 'Muitas requisições. Por favor, aguarde alguns segundos e tente novamente.'
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Payment required',
+            message: 'Limite de uso atingido. Entre em contato com o suporte.'
+          }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Gemini response:', JSON.stringify(data, null, 2));
+    console.log('AI response:', JSON.stringify(data, null, 2));
 
-    const candidate = data.candidates?.[0];
-    if (!candidate) {
-      throw new Error('No response from Gemini');
+    const choice = data.choices?.[0];
+    if (!choice) {
+      throw new Error('No response from AI');
     }
 
-    const parts = candidate.content?.parts || [];
+    const assistantMessage = choice.message;
     
-    // Check for function calls
-    const functionCall = parts.find((p: any) => p.functionCall);
-    
-    if (functionCall) {
-      const { name, args } = functionCall.functionCall;
-      console.log('Function call detected:', name, args);
+    // Check for tool calls
+    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
+      const toolCall = assistantMessage.tool_calls[0];
+      const name = toolCall.function.name;
+      const args = JSON.parse(toolCall.function.arguments);
+      
+      console.log('Tool call detected:', name, args);
 
       let functionResponse: any = {};
-      let assistantMessage = '';
+      let responseMessage = '';
 
       switch (name) {
         case 'record_transaction':
@@ -189,7 +204,7 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
           };
           
           const typeLabel = args.type === 'expense' ? '💸 Gasto' : '💰 Ganho';
-          assistantMessage = `${typeLabel} registrado com sucesso!\n\n📝 **${args.description}**\n💵 Valor: R$ ${args.amount.toFixed(2)}\n📂 Categoria: ${getCategoryLabel(args.category)}\n\nSeu novo saldo será atualizado automaticamente. Precisa de mais alguma coisa?`;
+          responseMessage = `${typeLabel} registrado com sucesso!\n\n📝 **${args.description}**\n💵 Valor: R$ ${args.amount.toFixed(2)}\n📂 Categoria: ${getCategoryLabel(args.category)}\n\nSeu novo saldo será atualizado automaticamente. Precisa de mais alguma coisa?`;
           break;
 
         case 'get_financial_summary':
@@ -203,21 +218,21 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
             ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(1)
             : 0;
           
-          assistantMessage = `📊 **Seu Resumo Financeiro**\n\n💰 Saldo atual: **R$ ${context.balance.toFixed(2)}**\n📈 Total de ganhos: R$ ${context.totalIncome.toFixed(2)}\n📉 Total de gastos: R$ ${context.totalExpense.toFixed(2)}\n💎 Taxa de economia: ${savingsRate}%\n\n${Number(savingsRate) >= 20 ? '🎉 Parabéns! Você está economizando bem!' : '💡 Dica: Tente economizar pelo menos 20% da sua renda.'}`;
+          responseMessage = `📊 **Seu Resumo Financeiro**\n\n💰 Saldo atual: **R$ ${context.balance.toFixed(2)}**\n📈 Total de ganhos: R$ ${context.totalIncome.toFixed(2)}\n📉 Total de gastos: R$ ${context.totalExpense.toFixed(2)}\n💎 Taxa de economia: ${savingsRate}%\n\n${Number(savingsRate) >= 20 ? '🎉 Parabéns! Você está economizando bem!' : '💡 Dica: Tente economizar pelo menos 20% da sua renda.'}`;
           break;
 
         case 'get_current_balance':
           functionResponse = { balance: context.balance };
-          assistantMessage = `💰 Seu saldo atual é **R$ ${context.balance.toFixed(2)}**.\n\nPrecisa de mais alguma informação?`;
+          responseMessage = `💰 Seu saldo atual é **R$ ${context.balance.toFixed(2)}**.\n\nPrecisa de mais alguma informação?`;
           break;
 
         default:
-          assistantMessage = 'Desculpe, não entendi o que você precisa. Pode reformular?';
+          responseMessage = 'Desculpe, não entendi o que você precisa. Pode reformular?';
       }
 
       return new Response(
         JSON.stringify({
-          message: assistantMessage,
+          message: responseMessage,
           functionCall: { name, args },
           functionResponse
         }),
@@ -225,9 +240,8 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
       );
     }
 
-    // No function call, return text response
-    const textPart = parts.find((p: any) => p.text);
-    const textResponse = textPart?.text || 'Desculpe, não consegui processar sua mensagem.';
+    // No tool call, return text response
+    const textResponse = assistantMessage.content || 'Desculpe, não consegui processar sua mensagem.';
 
     return new Response(
       JSON.stringify({ message: textResponse }),
