@@ -110,19 +110,85 @@ export async function toggleUserBlock(id: string, blocked: boolean): Promise<boo
   return true;
 }
 
-// Delete user
-export async function deleteUser(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('users_matricula')
-    .delete()
-    .eq('id', id);
+// Delete user and all related data
+export async function deleteUser(id: string, matricula: number): Promise<boolean> {
+  try {
+    // Delete all transactions
+    const { error: transactionsError } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('user_matricula', matricula);
 
-  if (error) {
-    console.error('Error deleting user:', error);
+    if (transactionsError) {
+      console.error('Error deleting transactions:', transactionsError);
+    }
+
+    // Delete all scheduled payments
+    const { error: scheduledError } = await supabase
+      .from('scheduled_payments')
+      .delete()
+      .eq('user_matricula', matricula);
+
+    if (scheduledError) {
+      console.error('Error deleting scheduled payments:', scheduledError);
+    }
+
+    // Delete all payment logs
+    const { error: paymentLogsError } = await supabase
+      .from('payment_logs')
+      .delete()
+      .eq('user_matricula', matricula);
+
+    if (paymentLogsError) {
+      console.error('Error deleting payment logs:', paymentLogsError);
+    }
+
+    // Delete all salary credits
+    const { error: salaryError } = await supabase
+      .from('salary_credits')
+      .delete()
+      .eq('user_matricula', matricula);
+
+    if (salaryError) {
+      console.error('Error deleting salary credits:', salaryError);
+    }
+
+    // Delete all categories
+    const { error: categoriesError } = await supabase
+      .from('categories')
+      .delete()
+      .eq('user_matricula', matricula);
+
+    if (categoriesError) {
+      console.error('Error deleting categories:', categoriesError);
+    }
+
+    // Delete all goals
+    const { error: goalsError } = await supabase
+      .from('goals')
+      .delete()
+      .eq('user_matricula', matricula);
+
+    if (goalsError) {
+      console.error('Error deleting goals:', goalsError);
+    }
+
+    // Finally delete the user
+    const { error: userError } = await supabase
+      .from('users_matricula')
+      .delete()
+      .eq('id', id);
+
+    if (userError) {
+      console.error('Error deleting user:', userError);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in deleteUser:', error);
     return false;
   }
-
-  return true;
 }
 
 // Get dashboard stats
