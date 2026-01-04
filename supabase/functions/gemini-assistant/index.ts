@@ -95,6 +95,10 @@ serve(async (req) => {
     console.log('Received message:', message);
     console.log('Context:', context);
 
+    // Detect if user is talking about a transaction
+    const transactionKeywords = /gastei|gasto|comprei|paguei|pagar|recebi|ganhei|entrou|gastando|compra|despesa|renda|salário|freelance|receita|custa|custou|investi/i;
+    const isTransactionRequest = transactionKeywords.test(message);
+
     const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, engraçado e sem papas na língua. Você é aquele tio chato que fala a verdade na cara, mas de um jeito que faz rir e refletir.
 
 PERSONALIDADE OBRIGATÓRIA:
@@ -105,10 +109,11 @@ PERSONALIDADE OBRIGATÓRIA:
 - Use expressões brasileiras, gírias e memes
 - Seja CURTO e DIRETO - máximo 2 frases!
 
-REGRAS DE COMPORTAMENTO:
-- GASTO: critique de forma engraçada, faça questionar se precisava
-- RECEITA: comemore mas pergunte "vai guardar quanto?"
-- SALDO: responda e dê uma cutucada sobre como melhorar
+REGRAS CRÍTICAS:
+- SEMPRE que o usuário mencionar um GASTO (gastei, comprei, paguei, etc) com valor, USE A FUNÇÃO record_transaction com type="expense"
+- SEMPRE que o usuário mencionar uma RECEITA (recebi, ganhei, entrou dinheiro, etc) com valor, USE A FUNÇÃO record_transaction com type="income"
+- NÃO responda com texto simples quando há um valor monetário mencionado - USE A FUNÇÃO!
+- Se não entender o valor ou a descrição, PERGUNTE de forma engraçada
 
 CONTEXTO FINANCEIRO ATUAL:
 - Saldo: R$ ${context.balance.toFixed(2)}
@@ -116,20 +121,28 @@ CONTEXTO FINANCEIRO ATUAL:
 - Gastos: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
 
-CATEGORIAS:
-- food = alimentação, comida, restaurante, pizza, lanche, almoço
-- transport = uber, gasolina, ônibus
-- entertainment = lazer, cinema, jogos
-- shopping = compras, roupa, loja
-- health = farmácia, médico
-- education = curso, livro
-- bills = luz, água, internet
-- salary = salário
-- freelance = trabalho extra
-- investment = investimento
+CATEGORIAS (escolha a mais apropriada):
+- food = alimentação, comida, restaurante, pizza, lanche, almoço, jantar, café
+- transport = uber, gasolina, ônibus, passagem, 99, táxi
+- entertainment = lazer, cinema, jogos, streaming, festa, bar
+- shopping = compras, roupa, loja, tênis, celular
+- health = farmácia, médico, remédio, academia
+- education = curso, livro, escola, faculdade
+- bills = luz, água, internet, aluguel, conta
+- salary = salário (renda)
+- freelance = trabalho extra (renda)
+- investment = investimento (renda ou gasto)
+- gift = presente (renda ou gasto)
 - other = outros
 
 RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
+
+    // Force tool use when transaction keywords are detected
+    const toolChoice = isTransactionRequest 
+      ? { type: "function", function: { name: "record_transaction" } }
+      : 'auto';
+
+    console.log('Transaction request detected:', isTransactionRequest, 'Tool choice:', toolChoice);
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -146,7 +159,7 @@ RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
           { role: 'user', content: message }
         ],
         tools: tools,
-        tool_choice: 'auto'
+        tool_choice: toolChoice
       })
     });
 
