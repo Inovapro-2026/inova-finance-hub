@@ -1,4 +1,4 @@
-// Native TTS Service using Web Speech API - Português Brasileiro
+// Native TTS Service using Web Speech API - Português Brasileiro OBRIGATÓRIO
 // Persists voice selection in localStorage
 
 const VOICE_STORAGE_KEY = 'inovabank_selected_voice';
@@ -10,8 +10,8 @@ const PRIORITY_VOICES = [
   'Microsoft Maria',
   'Maria',
   'Francisca',
-  'pt-BR',
-  'Portuguese (Brazil)',
+  'Daniel', // pt-BR male voice
+  'Portuguese Brazil',
 ];
 
 let selectedVoice: SpeechSynthesisVoice | null = null;
@@ -19,17 +19,31 @@ let voicesLoaded = false;
 let onVoiceSelectedCallback: (() => void) | null = null;
 
 /**
+ * Check if a voice is Portuguese (pt-BR or pt-PT)
+ */
+function isPortugueseVoice(voice: SpeechSynthesisVoice): boolean {
+  const lang = voice.lang.toLowerCase();
+  const name = voice.name.toLowerCase();
+  
+  return (
+    lang === 'pt-br' ||
+    lang === 'pt_br' ||
+    lang.startsWith('pt-br') ||
+    lang.startsWith('pt_br') ||
+    lang === 'pt' ||
+    lang.startsWith('pt-') ||
+    name.includes('brasil') ||
+    name.includes('portuguese') ||
+    name.includes('português')
+  );
+}
+
+/**
  * Get all available pt-BR voices
  */
 export function getPtBrVoices(): SpeechSynthesisVoice[] {
   const voices = window.speechSynthesis.getVoices();
-  return voices.filter(v => 
-    v.lang === 'pt-BR' || 
-    v.lang === 'pt_BR' ||
-    v.lang.startsWith('pt-BR') ||
-    v.lang.startsWith('pt_BR') ||
-    (v.lang.startsWith('pt') && v.name.toLowerCase().includes('brasil'))
-  );
+  return voices.filter(isPortugueseVoice);
 }
 
 /**
@@ -38,29 +52,48 @@ export function getPtBrVoices(): SpeechSynthesisVoice[] {
 export function getBestPtBrVoice(): SpeechSynthesisVoice | null {
   const ptBrVoices = getPtBrVoices();
   
-  if (ptBrVoices.length === 0) return null;
+  if (ptBrVoices.length === 0) {
+    console.warn('TTS: Nenhuma voz pt-BR encontrada!');
+    return null;
+  }
+  
+  console.log('TTS: Vozes pt-BR disponíveis:', ptBrVoices.map(v => `${v.name} (${v.lang})`));
   
   // Try to find a prioritized voice
   for (const priorityName of PRIORITY_VOICES) {
     const found = ptBrVoices.find(v => 
       v.name.toLowerCase().includes(priorityName.toLowerCase())
     );
-    if (found) return found;
+    if (found) {
+      console.log('TTS: Voz prioritária encontrada:', found.name);
+      return found;
+    }
   }
   
   // Return first pt-BR voice as fallback
+  console.log('TTS: Usando primeira voz pt-BR:', ptBrVoices[0].name);
   return ptBrVoices[0];
 }
 
 /**
- * Load saved voice from localStorage
+ * Load saved voice from localStorage - ONLY if it's Portuguese
  */
 function loadSavedVoice(): SpeechSynthesisVoice | null {
   const savedVoiceName = localStorage.getItem(VOICE_STORAGE_KEY);
   if (!savedVoiceName) return null;
   
   const voices = window.speechSynthesis.getVoices();
-  return voices.find(v => v.name === savedVoiceName) || null;
+  const savedVoice = voices.find(v => v.name === savedVoiceName);
+  
+  // Verify saved voice is Portuguese, otherwise clear it
+  if (savedVoice && isPortugueseVoice(savedVoice)) {
+    return savedVoice;
+  }
+  
+  // Clear invalid saved voice
+  console.log('TTS: Voz salva não é português, limpando:', savedVoiceName);
+  localStorage.removeItem(VOICE_STORAGE_KEY);
+  return null;
 }
 
 /**
@@ -112,7 +145,7 @@ export function initNativeTts(onReady?: () => void): void {
 }
 
 /**
- * Auto-select the best pt-BR voice (no prompt needed)
+ * Auto-select the best pt-BR voice (SOMENTE pt-BR!)
  */
 function autoSelectVoice(): void {
   const bestVoice = getBestPtBrVoice();
@@ -120,15 +153,11 @@ function autoSelectVoice(): void {
   if (bestVoice) {
     selectedVoice = bestVoice;
     saveVoice(selectedVoice);
-    console.log('TTS: Auto-selected pt-BR voice:', selectedVoice.name);
+    console.log('TTS: Voz pt-BR selecionada:', selectedVoice.name, `(${selectedVoice.lang})`);
   } else {
-    // Fallback to any available voice
-    const allVoices = window.speechSynthesis.getVoices();
-    if (allVoices.length > 0) {
-      selectedVoice = allVoices[0];
-      saveVoice(selectedVoice);
-      console.log('TTS: Using fallback voice:', selectedVoice.name);
-    }
+    // NÃO usar fallback não-português - manter null
+    console.warn('TTS: Nenhuma voz pt-BR disponível! TTS não funcionará corretamente.');
+    selectedVoice = null;
   }
   
   onVoiceSelectedCallback?.();
@@ -192,20 +221,28 @@ export function speakNative(text: string): Promise<void> {
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
-    // Use selected voice or try to load it
+    // Use selected voice or try to load/find one
     let voice = selectedVoice;
     if (!voice) {
       voice = loadSavedVoice();
+      if (!voice) {
+        // Try to auto-select again
+        voice = getBestPtBrVoice();
+      }
       if (voice) {
         selectedVoice = voice;
+        saveVoice(voice);
       }
     }
 
-    if (voice) {
+    // SEMPRE forçar pt-BR
+    utterance.lang = 'pt-BR';
+    
+    if (voice && isPortugueseVoice(voice)) {
       utterance.voice = voice;
-      utterance.lang = voice.lang;
+      console.log('TTS: Falando com voz:', voice.name, `(${voice.lang})`);
     } else {
-      utterance.lang = 'pt-BR';
+      console.warn('TTS: Usando lang pt-BR sem voz específica');
     }
 
     utterance.rate = 1.0;
