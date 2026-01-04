@@ -6,7 +6,7 @@ import { calculateBalance, getTransactions, addTransaction, EXPENSE_CATEGORIES, 
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { speak as ttsSpeak } from '@/services/ttsService';
+import { initNativeTts, speakNative, stopSpeaking as stopNativeSpeaking, hasVoiceSelected } from '@/services/nativeTtsService';
 
 interface FinancialContext {
   balance: number;
@@ -52,8 +52,8 @@ export default function AI() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [usePremiumTTS, setUsePremiumTTS] = useState(false); // Use native browser TTS
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceReady, setVoiceReady] = useState(false);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [input, setInput] = useState('');
   const [statusText, setStatusText] = useState('Toque para falar');
@@ -61,110 +61,40 @@ export default function AI() {
   const [editingAmount, setEditingAmount] = useState(false);
   const [editedAmount, setEditedAmount] = useState('');
   const recognitionRef = useRef<any>(null);
-  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load voices for fallback native TTS
+  // Initialize native TTS with voice selection
   useEffect(() => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+    // Check if voice is already selected
+    if (hasVoiceSelected()) {
+      setVoiceReady(true);
     }
+    
+    // Initialize TTS service
+    initNativeTts(() => {
+      setVoiceReady(true);
+    });
+
     return () => {
-      window.speechSynthesis.cancel();
-      if (currentAudioRef.current) {
-        currentAudioRef.current.pause();
-      }
+      stopNativeSpeaking();
     };
   }, []);
 
-  // Get the best Portuguese voice (fallback)
-  const getBestVoice = useCallback(() => {
-    const voices = window.speechSynthesis.getVoices();
-    const ptVoices = voices.filter(v => v.lang.startsWith('pt'));
-    const premiumVoice = ptVoices.find(v => 
-      v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Luciana')
-    );
-    return premiumVoice || ptVoices[0] || voices[0] || null;
-  }, []);
-
-  // Native TTS function (fallback)
-  const speakNative = useCallback((text: string) => {
-    if (!voiceEnabled || !('speechSynthesis' in window)) return;
-
-    const cleanText = text
-      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
-      .replace(/\*\*/g, '')
-      .replace(/\n+/g, '. ')
-      .replace(/•/g, '')
-      .trim();
-
-    if (!cleanText) return;
-    
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    
-    const voice = getBestVoice();
-    if (voice) {
-      utterance.voice = voice;
-      utterance.lang = voice.lang;
-    } else {
-      utterance.lang = 'pt-BR';
-    }
-    
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  }, [voiceEnabled, getBestVoice]);
-
-  // Premium TTS using Hugging Face
+  // TTS function using native voice
   const speak = useCallback(async (text: string) => {
     if (!voiceEnabled) return;
 
-    const cleanText = text
-      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
-      .replace(/\*\*/g, '')
-      .replace(/\n+/g, '. ')
-      .replace(/•/g, '')
-      .trim();
-
-    if (!cleanText) return;
-
-    if (usePremiumTTS) {
-      try {
-        setIsSpeaking(true);
-        const audio = await ttsSpeak(cleanText);
-        if (audio) {
-          currentAudioRef.current = audio;
-          audio.onended = () => setIsSpeaking(false);
-          audio.onerror = () => {
-            setIsSpeaking(false);
-            // Fallback to native TTS on error
-            speakNative(cleanText);
-          };
-        } else {
-          // Fallback to native TTS
-          speakNative(cleanText);
-        }
-      } catch (err) {
-        console.error('Premium TTS failed, using native:', err);
-        speakNative(cleanText);
-      }
-    } else {
-      speakNative(cleanText);
+    try {
+      setIsSpeaking(true);
+      await speakNative(text);
+      setIsSpeaking(false);
+    } catch (err) {
+      console.error('TTS error:', err);
+      setIsSpeaking(false);
     }
-  }, [voiceEnabled, usePremiumTTS, speakNative]);
+  }, [voiceEnabled]);
 
-  const stopSpeaking = useCallback(() => {
-    window.speechSynthesis.cancel();
-    if (currentAudioRef.current) {
-      currentAudioRef.current.pause();
-      currentAudioRef.current = null;
-    }
+  const handleStopSpeaking = useCallback(() => {
+    stopNativeSpeaking();
     setIsSpeaking(false);
   }, []);
 
@@ -394,7 +324,7 @@ export default function AI() {
       <div className="absolute top-6 right-6 z-20">
         <motion.button
           onClick={() => {
-            if (isSpeaking) stopSpeaking();
+            if (isSpeaking) handleStopSpeaking();
             setVoiceEnabled(!voiceEnabled);
             toast.info(voiceEnabled ? 'Voz desativada' : 'Voz ativada');
           }}
