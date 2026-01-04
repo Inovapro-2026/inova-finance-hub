@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, DollarSign, Tag, Repeat, CalendarCheck } from 'lucide-react';
 import { format } from 'date-fns';
@@ -73,11 +74,11 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
     setAmount(cleaned);
   };
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -249,4 +250,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
       )}
     </AnimatePresence>
   );
+
+  // Render in portal to ensure it's above everything
+  return createPortal(modalContent, document.body);
 }
