@@ -1,17 +1,39 @@
 // Native TTS Service using Web Speech API - Português Brasileiro OBRIGATÓRIO
-// Persists voice selection in localStorage
+// Vozes naturais de alta qualidade com configurações otimizadas
 
 const VOICE_STORAGE_KEY = 'inovabank_selected_voice';
 
-// Prioritized pt-BR voice names (in order of preference)
-const PRIORITY_VOICES = [
+// Vozes de alta qualidade (Neural/Natural) - ordem de preferência
+// Google e Microsoft têm as vozes mais naturais
+const HIGH_QUALITY_VOICES = [
+  // Google Neural voices (mais naturais)
   'Google português do Brasil',
-  'Luciana',
-  'Microsoft Maria',
-  'Maria',
+  'Google Português do Brasil',
+  // Microsoft Neural voices (excelente qualidade)
+  'Microsoft Francisca Online (Natural)',
+  'Microsoft Thalita Online (Natural)', 
+  'Microsoft Antonio Online (Natural)',
   'Francisca',
-  'Daniel', // pt-BR male voice
-  'Portuguese Brazil',
+  'Thalita',
+  'Antonio',
+  // Apple voices (macOS/iOS)
+  'Luciana',
+  'Felipe',
+  // Outras vozes brasileiras
+  'Maria',
+  'Daniel',
+  'Portuguese Brazil Female',
+  'Portuguese Brazil Male',
+  'pt-BR-Wavenet',
+  'pt-BR-Neural',
+];
+
+// Vozes a EVITAR (muito robóticas)
+const AVOID_VOICES = [
+  'espeak',
+  'eSpeak',
+  'MBROLA',
+  'Festival',
 ];
 
 let selectedVoice: SpeechSynthesisVoice | null = null;
@@ -19,7 +41,7 @@ let voicesLoaded = false;
 let onVoiceSelectedCallback: (() => void) | null = null;
 
 /**
- * Check if a voice is Portuguese (pt-BR or pt-PT)
+ * Check if a voice is Portuguese (pt-BR preferred)
  */
 function isPortugueseVoice(voice: SpeechSynthesisVoice): boolean {
   const lang = voice.lang.toLowerCase();
@@ -39,6 +61,28 @@ function isPortugueseVoice(voice: SpeechSynthesisVoice): boolean {
 }
 
 /**
+ * Check if voice is high quality (Neural/Natural)
+ */
+function isHighQualityVoice(voice: SpeechSynthesisVoice): boolean {
+  const name = voice.name.toLowerCase();
+  
+  // Avoid robotic voices
+  if (AVOID_VOICES.some(avoid => name.includes(avoid.toLowerCase()))) {
+    return false;
+  }
+  
+  // Prefer Neural/Natural/Online voices
+  return (
+    name.includes('neural') ||
+    name.includes('natural') ||
+    name.includes('online') ||
+    name.includes('google') ||
+    name.includes('wavenet') ||
+    voice.localService === false // Remote voices are usually better
+  );
+}
+
+/**
  * Get all available pt-BR voices
  */
 export function getPtBrVoices(): SpeechSynthesisVoice[] {
@@ -47,7 +91,7 @@ export function getPtBrVoices(): SpeechSynthesisVoice[] {
 }
 
 /**
- * Get the best pt-BR voice based on priority list
+ * Get the best pt-BR voice based on quality
  */
 export function getBestPtBrVoice(): SpeechSynthesisVoice | null {
   const ptBrVoices = getPtBrVoices();
@@ -57,20 +101,39 @@ export function getBestPtBrVoice(): SpeechSynthesisVoice | null {
     return null;
   }
   
-  console.log('TTS: Vozes pt-BR disponíveis:', ptBrVoices.map(v => `${v.name} (${v.lang})`));
+  console.log('TTS: Vozes pt-BR disponíveis:', ptBrVoices.map(v => 
+    `${v.name} (${v.lang}) ${isHighQualityVoice(v) ? '⭐' : ''}`
+  ));
   
-  // Try to find a prioritized voice
-  for (const priorityName of PRIORITY_VOICES) {
+  // First: Try to find a high-quality prioritized voice
+  for (const priorityName of HIGH_QUALITY_VOICES) {
     const found = ptBrVoices.find(v => 
-      v.name.toLowerCase().includes(priorityName.toLowerCase())
+      v.name.toLowerCase().includes(priorityName.toLowerCase()) &&
+      !AVOID_VOICES.some(avoid => v.name.toLowerCase().includes(avoid.toLowerCase()))
     );
     if (found) {
-      console.log('TTS: Voz prioritária encontrada:', found.name);
+      console.log('TTS: ⭐ Voz de alta qualidade encontrada:', found.name);
       return found;
     }
   }
   
-  // Return first pt-BR voice as fallback
+  // Second: Find any high-quality pt-BR voice
+  const highQualityVoice = ptBrVoices.find(isHighQualityVoice);
+  if (highQualityVoice) {
+    console.log('TTS: Voz de qualidade encontrada:', highQualityVoice.name);
+    return highQualityVoice;
+  }
+  
+  // Third: Find any non-robotic voice
+  const nonRoboticVoice = ptBrVoices.find(v => 
+    !AVOID_VOICES.some(avoid => v.name.toLowerCase().includes(avoid.toLowerCase()))
+  );
+  if (nonRoboticVoice) {
+    console.log('TTS: Voz não-robótica encontrada:', nonRoboticVoice.name);
+    return nonRoboticVoice;
+  }
+  
+  // Last resort: first pt-BR voice
   console.log('TTS: Usando primeira voz pt-BR:', ptBrVoices[0].name);
   return ptBrVoices[0];
 }
@@ -245,8 +308,11 @@ export function speakNative(text: string): Promise<void> {
       console.warn('TTS: Usando lang pt-BR sem voz específica');
     }
 
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    // Configurações para voz mais natural
+    // Rate um pouco mais lento = mais natural
+    utterance.rate = 0.95;
+    // Pitch levemente mais baixo = menos robótico
+    utterance.pitch = 0.98;
     utterance.volume = 1.0;
 
     utterance.onend = () => resolve();
