@@ -76,27 +76,29 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             onClick={onClose}
           />
 
           {/* Modal */}
           <motion.div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-md"
+            className="relative w-full max-w-md mx-auto"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            <div className="bg-card rounded-3xl shadow-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[85vh] flex flex-col">
               {/* Header */}
-              <div className="bg-gradient-to-r from-primary to-secondary p-5 relative">
+              <div className="bg-gradient-to-r from-primary to-secondary p-5 relative flex-shrink-0">
                 <button
                   onClick={onClose}
                   className="absolute right-4 top-4 w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-colors"
@@ -108,7 +110,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
               </div>
 
               {/* Content */}
-              <div className="p-5 space-y-5 max-h-[60vh] overflow-y-auto">
+              <div className="p-5 space-y-5 overflow-y-auto flex-1">
                 {/* Name */}
                 <div className="space-y-2">
                   <Label htmlFor="payment-name" className="text-sm font-medium flex items-center gap-2">
@@ -232,7 +234,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
               </div>
 
               {/* Footer */}
-              <div className="p-5 pt-0">
+              <div className="p-5 pt-0 flex-shrink-0">
                 <Button
                   onClick={handleSubmit}
                   disabled={!name.trim() || !amount || !selectedDate}
@@ -243,7 +245,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePa
               </div>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );
