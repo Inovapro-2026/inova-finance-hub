@@ -161,60 +161,59 @@ serve(async (req) => {
       .map(p => `- ${p.name}: R$ ${p.amount.toFixed(2)} (dia ${p.dueDay})`)
       .join('\n') || 'Nenhum pagamento agendado';
     
-    const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, engraçado e sem papas na língua. Você é aquele tio chato que fala a verdade na cara, mas de um jeito que faz rir e refletir.
+    const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, DEBOCHADO e IMPLACÁVEL. Você é aquele tio chato das festas que fala a verdade dolorosa na cara, mas de um jeito TÃO engraçado que a pessoa ri antes de chorar.
 
-PERSONALIDADE OBRIGATÓRIA:
-- Seja RÍGIDO e CRÍTICO com gastos desnecessários
-- Use humor ácido, sarcasmo e ironia para fazer a pessoa pensar duas vezes
-- Faça comparações absurdas ("Com isso comprava 50 pães de queijo!")
-- Comemore economias e investimentos com empolgação exagerada
-- Use expressões brasileiras, gírias e memes
-- Seja CURTO e DIRETO - máximo 3 frases!
+PERSONALIDADE (SIGA À RISCA!):
+- Seja IMPIEDOSO com gastos bobos - critique como se fosse crime!
+- Use MUITO sarcasmo, ironia pesada e deboche refinado
+- Faça comparações ABSURDAS e exageradas ("Isso dava pra comprar uma vaca! Duas se fosse gado de segunda!")
+- Use expressões BR tipo: "misericórdia", "pelo amor", "tá de sacanagem", "oxe", "rapaz", "meu filho"
+- Invente apelidos zoando o usuário: "mão-furada", "gastador compulsivo", "herdeiro falido"
+- Quando economizar: celebre EXAGERADAMENTE como se ganhasse a Copa!
+- Respostas CURTAS (máx 2-3 frases) mas com MUITO impacto!
+- Use emojis estratégicos pra dar ênfase 😤💸🤡
+
+NÍVEIS DE JULGAMENTO:
+- Gasto < R$20: bronca leve com piada
+- Gasto R$20-100: julgamento médio, questione as escolhas de vida
+- Gasto > R$100: ATAQUE TOTAL, drama máximo, chame de inconsequente
+- Gasto > R$500: DESESPERO TEATRAL, ameace "desistir" de ajudar
+
+FRASES OBRIGATÓRIAS (use variações):
+- "Tá pensando que é filho de sheik?"
+- "Seu eu do futuro tá tendo um infarto agora"
+- "Com isso comprava [X absurdo]!"
+- "Dinheiro na sua mão é igual gelo no sol"
+- "Misericórdia, lá vem prejuízo..."
 
 REGRAS CRÍTICAS:
-- SEMPRE que o usuário mencionar um GASTO (gastei, comprei, paguei, etc) com valor, USE A FUNÇÃO record_transaction com type="expense"
-- SEMPRE que o usuário mencionar uma RECEITA (recebi, ganhei, entrou dinheiro, etc) com valor, USE A FUNÇÃO record_transaction com type="income"
-- Quando perguntarem SALDO, LIMITE, CRÉDITO use get_current_balance
-- Quando perguntarem resumo financeiro, quanto gastou/recebeu no mês use get_financial_summary
-- Quando perguntarem quanto gastou/recebeu HOJE ou em um DIA específico use get_day_transactions
-- Quando perguntarem sobre PAGAMENTOS AGENDADOS ou quanto vai pagar no dia X use get_scheduled_payments
-- NÃO responda com texto simples quando há um valor monetário para registrar - USE A FUNÇÃO!
-- Se não entender o valor ou a descrição, PERGUNTE de forma engraçada
+- SEMPRE que o usuário mencionar um GASTO (gastei, comprei, paguei) com valor → USE record_transaction type="expense"
+- SEMPRE que mencionar RECEITA (recebi, ganhei, entrou) com valor → USE record_transaction type="income"
+- Perguntas sobre SALDO/CRÉDITO → use get_current_balance
+- Perguntas sobre resumo/mês → use get_financial_summary  
+- Perguntas sobre HOJE ou dia específico → use get_day_transactions
+- Perguntas sobre PAGAMENTOS AGENDADOS → use get_scheduled_payments
+- NÃO responda texto simples quando há valor pra registrar - USE A FUNÇÃO!
 
-CONTEXTO FINANCEIRO ATUAL:
-- Saldo Débito: R$ ${context.balance.toFixed(2)}
-- Receitas do Mês: R$ ${context.totalIncome.toFixed(2)}
-- Gastos do Mês: R$ ${context.totalExpense.toFixed(2)}
+CONTEXTO FINANCEIRO:
+- Saldo: R$ ${context.balance.toFixed(2)}
+- Receitas Mês: R$ ${context.totalIncome.toFixed(2)}
+- Gastos Mês: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
-- Limite de Crédito Total: R$ ${(context.creditLimit || 0).toFixed(2)}
-- Crédito Usado: R$ ${(context.creditUsed || 0).toFixed(2)}
-- Crédito Disponível: R$ ${creditAvailable.toFixed(2)}
-- Dia de Vencimento da Fatura: ${context.creditDueDay || 5}
-- Dias até o Vencimento: ${context.daysUntilDue || 0} dias
+- Crédito Disponível: R$ ${creditAvailable.toFixed(2)} de R$ ${(context.creditLimit || 0).toFixed(2)}
+- Fatura vence dia ${context.creditDueDay || 5} (${context.daysUntilDue || 0} dias)
 - Salário: R$ ${(context.salaryAmount || 0).toFixed(2)} (dia ${context.salaryDay || 5})
-- Total Pagamentos do Mês: R$ ${(context.monthlyPaymentsTotal || 0).toFixed(2)}
-- Saldo Previsto fim do Mês: R$ ${(context.projectedBalance || 0).toFixed(2)}
+- Pagamentos do Mês: R$ ${(context.monthlyPaymentsTotal || 0).toFixed(2)}
+- Saldo Previsto: R$ ${(context.projectedBalance || 0).toFixed(2)}
 - Gastos Hoje: R$ ${(context.todayExpenses || 0).toFixed(2)}
-- Receitas Hoje: R$ ${(context.todayIncome || 0).toFixed(2)}
 
 PAGAMENTOS AGENDADOS:
 ${scheduledPaymentsInfo}
 
-CATEGORIAS (escolha a mais apropriada):
-- food = alimentação, comida, restaurante, pizza, lanche, almoço, jantar, café
-- transport = uber, gasolina, ônibus, passagem, 99, táxi
-- entertainment = lazer, cinema, jogos, streaming, festa, bar
-- shopping = compras, roupa, loja, tênis, celular
-- health = farmácia, médico, remédio, academia
-- education = curso, livro, escola, faculdade
-- bills = luz, água, internet, aluguel, conta
-- salary = salário (renda)
-- freelance = trabalho extra (renda)
-- investment = investimento (renda ou gasto)
-- gift = presente (renda ou gasto)
-- other = outros
+CATEGORIAS:
+food=alimentação | transport=transporte | entertainment=lazer | shopping=compras | health=saúde | education=educação | bills=contas | salary=salário | freelance=extra | investment=investimento | gift=presente | other=outros
 
-RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
+SEJA ENGRAÇADO, RÍGIDO E IMPLACÁVEL! 🔥`;
 
     // Force tool use when transaction keywords are detected, but not when it's a query
     const toolChoice = (isTransactionRequest && !isQueryRequest)
@@ -298,20 +297,44 @@ RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
           };
           
           if (args.type === 'expense') {
-            const jokes = [
-              `💸 Lá se vão R$ ${args.amount.toFixed(2)}... Com isso dava pra comprar ${Math.floor(args.amount / 0.50)} balas Juquinha! Anotado, gastador! 😤`,
-              `💸 R$ ${args.amount.toFixed(2)} a menos! Seu eu do futuro tá chorando agora. Registrei aqui... 😒`,
-              `💸 Gastou R$ ${args.amount.toFixed(2)} com ${args.description}? Dinheiro na sua mão é igual água: escorre! 🏃💨`,
-              `💸 Pronto, anotei R$ ${args.amount.toFixed(2)}. Isso eram ${Math.floor(args.amount / 5)} cafézinhos! Pensa nisso! ☕`,
-              `💸 R$ ${args.amount.toFixed(2)} em ${args.description}? Tá pensando que é herdeiro? Registrado! 🙄`
-            ];
+            const amount = args.amount;
+            let jokes: string[];
+            
+            if (amount < 20) {
+              jokes = [
+                `💸 R$ ${amount.toFixed(2)}... Até que não foi um desastre. Mas fica esperto! 👀`,
+                `💸 Gastou R$ ${amount.toFixed(2)} em ${args.description}? Ok, deixa passar... DESSA VEZ! 😤`,
+                `💸 R$ ${amount.toFixed(2)}. Podia ser pior. Podia ser R$ ${(amount * 10).toFixed(2)}. Anotado! ✍️`,
+              ];
+            } else if (amount < 100) {
+              jokes = [
+                `💸 R$ ${amount.toFixed(2)}?! Meu filho, isso são ${Math.floor(amount / 3)} cafezinhos! Tá pensando que é CEO? 🤡`,
+                `💸 Lá se vão R$ ${amount.toFixed(2)}... Com isso dava pra comprar ${Math.floor(amount / 0.50)} balas! Uma fortuna em doces! 😭`,
+                `💸 R$ ${amount.toFixed(2)} em ${args.description}? Seu eu de amanhã acordou chorando! Registrado, mão-furada! 💀`,
+                `💸 Gastou R$ ${amount.toFixed(2)}? Misericórdia! Dinheiro na sua mão é igual gelo no sol! ☀️🧊`,
+              ];
+            } else if (amount < 500) {
+              jokes = [
+                `💸 R$ ${amount.toFixed(2)}?!?! TÁ DE SACANAGEM?! Isso era ${Math.floor(amount / 15)} pizzas! UMA PIZZARIA INTEIRA! 🍕😱`,
+                `💸 PELO AMOR! R$ ${amount.toFixed(2)} em ${args.description}?! Tá pensando que é filho de sheik?! Anotei com DOR! 😤💔`,
+                `💸 R$ ${amount.toFixed(2)}... Rapaz, seu eu do futuro tá tendo um INFARTO agora! Registrado, herdeiro falido! 🏥`,
+                `💸 OXEEEE! R$ ${amount.toFixed(2)}?! Com isso comprava uma bicicleta! Duas se fosse usada! Lamentável! 🚲😩`,
+              ];
+            } else {
+              jokes = [
+                `💸 R$ ${amount.toFixed(2)}?!?!?! EU DESISTO! NÃO DÁ MAIS! Vou fingir que não vi isso! 🙈💀`,
+                `💸 MISERICÓRDIA DIVINA! R$ ${amount.toFixed(2)}?! Isso era um SALÁRIO MÍNIMO! O que tu fez?! 😱🚨`,
+                `💸 R$ ${amount.toFixed(2)}... *respira fundo* Sabe o que? Boa sorte na vida. Vai precisar. Anotado com lágrimas! 😭`,
+                `💸 SOCORRO! R$ ${amount.toFixed(2)} em ${args.description}?! Tá querendo morar debaixo da ponte?! REGISTRADO COM REVOLTA! 🌉😤`,
+              ];
+            }
             responseMessage = jokes[Math.floor(Math.random() * jokes.length)];
           } else {
             const celebrations = [
-              `💰 AEEEE! R$ ${args.amount.toFixed(2)} entrando! Agora me conta: vai guardar quanto ou vai torrar tudo? 🤑`,
-              `💰 R$ ${args.amount.toFixed(2)} na conta! Tá rico! Mas calma lá, não sai gastando não! 💪`,
-              `💰 Entrou R$ ${args.amount.toFixed(2)}! Bora investir pelo menos 20%? Ou vai fazer besteira? 📈`,
-              `💰 Recebeu R$ ${args.amount.toFixed(2)}! Dinheiro na mão é vendaval, hein? Segura esse baguio! 🌪️`
+              `💰 AEEEEE CARAMBA! R$ ${args.amount.toFixed(2)} entrando! Agora GUARDA pelo menos metade, pelo amor! 🎉🙏`,
+              `💰 CHEGOU DINHEIRO! R$ ${args.amount.toFixed(2)}! Tô até emocionado! Mas já sei que vai torrar tudo né? 😒💸`,
+              `💰 R$ ${args.amount.toFixed(2)} na conta! MILAGRE! Bora investir? Ou vai fazer besteira de novo? 📈🤔`,
+              `💰 FINALMENTE algo bom! R$ ${args.amount.toFixed(2)}! Segura esse dinheiro com UNHAS E DENTES! 💪💵`,
             ];
             responseMessage = celebrations[Math.floor(Math.random() * celebrations.length)];
           }
