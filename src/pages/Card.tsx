@@ -84,7 +84,7 @@ export default function Card() {
         animate={{ opacity: 1, y: 0 }}
         className="mb-8"
       >
-        <h1 className="font-display text-2xl font-bold">Inova Black</h1>
+        <h1 className="font-display text-2xl font-bold">INOVA BANK</h1>
         <p className="text-muted-foreground text-sm">Seu cartão premium</p>
       </motion.div>
 
@@ -92,40 +92,60 @@ export default function Card() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="card-3d-container mb-8"
+        className="mb-8 perspective-1000"
+        style={{ perspective: '1000px' }}
       >
-        <div
-          className={`card-3d relative w-full aspect-[1.586/1] max-w-sm mx-auto cursor-pointer ${
-            isFlipped ? 'flipped' : ''
+        <motion.div
+          className={`relative w-full aspect-[1.586/1] max-w-sm mx-auto cursor-pointer transition-all duration-700 transform-style-3d ${
+            isFlipped ? '[transform:rotateY(180deg)]' : ''
           }`}
+          style={{ 
+            transformStyle: 'preserve-3d',
+            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+          }}
           onClick={() => setIsFlipped(!isFlipped)}
+          whileHover={{ 
+            rotateX: isFlipped ? 0 : 5,
+            rotateY: isFlipped ? 185 : -5,
+            scale: 1.02
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         >
           {/* Front of Card */}
-          <div className="card-3d-face absolute inset-0">
-            <div className="w-full h-full rounded-2xl p-6 bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] border border-white/10 shadow-2xl overflow-hidden">
+          <div 
+            className="absolute inset-0 backface-hidden"
+            style={{ backfaceVisibility: 'hidden' }}
+          >
+            <div className="w-full h-full rounded-2xl p-6 bg-gradient-to-br from-[#0a0a0f] via-[#0d0d15] to-[#05050a] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_100px_rgba(139,92,246,0.1)] overflow-hidden">
               {/* Holographic Effect */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 via-transparent to-secondary/20 opacity-50" />
-              <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-secondary/10 opacity-60" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/5 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-500/5 via-transparent to-transparent" />
+              
+              {/* Animated shine effect */}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/5 to-transparent rotate-12 animate-[shimmer_3s_ease-in-out_infinite]" />
+              </div>
               
               {/* Card Content */}
               <div className="relative z-10 flex flex-col h-full">
                 {/* Top Row */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/30">
                       <Shield className="w-6 h-6" />
                     </div>
-                    <span className="font-display font-bold text-lg">INOVA</span>
+                    <span className="font-display font-bold text-lg tracking-wide">INOVAPRO BLACK</span>
                   </div>
-                  <Wifi className="w-6 h-6 text-white/60 rotate-90" />
+                  <Wifi className="w-6 h-6 text-white/40 rotate-90" />
                 </div>
 
                 {/* Chip */}
                 <div className="mt-6">
-                  <div className="w-12 h-9 rounded-md bg-gradient-to-br from-yellow-300/80 to-yellow-500/80 shadow-inner">
-                    <div className="w-full h-full grid grid-cols-3 gap-0.5 p-1">
+                  <div className="w-12 h-9 rounded-md bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20">
+                    <div className="w-full h-full grid grid-cols-3 gap-0.5 p-1.5">
                       {[...Array(6)].map((_, i) => (
-                        <div key={i} className="bg-yellow-600/40 rounded-sm" />
+                        <div key={i} className="bg-amber-700/50 rounded-sm" />
                       ))}
                     </div>
                   </div>
@@ -133,7 +153,7 @@ export default function Card() {
 
                 {/* Card Number */}
                 <div className="mt-6">
-                  <p className="font-mono text-lg tracking-[0.2em] text-white/90">
+                  <p className="font-mono text-lg tracking-[0.25em] text-white/90">
                     {formatCardNumber()}
                   </p>
                 </div>
@@ -141,40 +161,43 @@ export default function Card() {
                 {/* Bottom Row */}
                 <div className="mt-auto flex justify-between items-end">
                   <div>
-                    <p className="text-[10px] text-white/50 uppercase mb-1">Titular</p>
-                    <p className="font-medium text-sm uppercase tracking-wide">
+                    <p className="text-[10px] text-white/40 uppercase mb-1 tracking-wider">Titular</p>
+                    <p className="font-medium text-sm uppercase tracking-wide text-white/90">
                       {user?.fullName || 'NOME DO TITULAR'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-white/50 uppercase mb-1">Validade</p>
-                    <p className="font-mono text-sm">{getExpiryDate()}</p>
+                    <p className="text-[10px] text-white/40 uppercase mb-1 tracking-wider">Validade</p>
+                    <p className="font-mono text-sm text-white/90">{getExpiryDate()}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Decorative Lines */}
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-primary" />
+              {/* Bottom accent line */}
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary via-secondary to-primary" />
             </div>
           </div>
 
           {/* Back of Card */}
-          <div className="card-3d-face card-3d-back absolute inset-0">
-            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
+          <div 
+            className="absolute inset-0 backface-hidden"
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+          >
+            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#0a0a0f] via-[#0d0d15] to-[#05050a] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
               {/* Magnetic Strip */}
-              <div className="mt-6 h-10 bg-black/80" />
+              <div className="mt-6 h-10 bg-black" />
 
               {/* CVV Area */}
               <div className="mt-4 px-4">
-                <div className="bg-[#2a2a40] rounded-lg p-3">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-white/50">CVV</span>
+                    <span className="text-xs text-white/40">CVV</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowCVV(!showCVV);
                       }}
-                      className="flex items-center gap-2 bg-[#1a1a2e] px-3 py-1.5 rounded-md"
+                      className="flex items-center gap-2 bg-black/50 px-3 py-1.5 rounded-md border border-white/10"
                     >
                       <span className="font-mono text-white font-bold text-sm">
                         {showCVV ? '742' : '•••'}
@@ -191,7 +214,7 @@ export default function Card() {
 
               {/* Available Credit */}
               <div className="flex-1 flex flex-col items-center justify-center px-4">
-                <p className="text-[10px] text-white/50 uppercase mb-1">Limite Disponível</p>
+                <p className="text-[10px] text-white/40 uppercase mb-1 tracking-wider">Limite Disponível</p>
                 <p className="font-display text-xl font-bold text-secondary">
                   {formatCurrency(availableCredit)}
                 </p>
@@ -201,13 +224,13 @@ export default function Card() {
               <div className="px-4 pb-4 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-primary" />
-                  <span className="text-xs text-white/50">Protegido</span>
+                  <span className="text-xs text-white/40">Protegido</span>
                 </div>
                 <Fingerprint className="w-5 h-5 text-primary/50" />
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </motion.div>
 
       {/* Tip */}
