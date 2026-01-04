@@ -72,7 +72,7 @@ export default function Login() {
       
       if (existingUser) {
         // Login do usuário existente
-        const success = await login(matricula, existingUser.full_name || '');
+        const success = await login(parseInt(matricula), existingUser.full_name || '');
         if (success) {
           navigate('/');
         } else {
@@ -128,13 +128,12 @@ export default function Login() {
       
       // Login local com os dados extras
       const success = await login(
-        newMatricula.toString(), 
+        newMatricula, 
         fullName.trim(),
         email.trim(),
         phone.trim(),
         parseFloat(initialBalance) || 0,
         parseFloat(creditLimit) || 5000,
-        dueDate,
         dueDay
       );
       

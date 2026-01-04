@@ -5,13 +5,12 @@ interface AuthContextType {
   user: Profile | null;
   isLoading: boolean;
   login: (
-    userId: string, 
+    matricula: number, 
     fullName?: string, 
     email?: string,
     phone?: string,
     initialBalance?: number,
     creditLimit?: number,
-    creditDueDate?: Date,
     creditDueDay?: number
   ) => Promise<boolean>;
   logout: () => void;
@@ -26,17 +25,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    const storedUserId = localStorage.getItem('inovafinance_userId');
-    if (storedUserId) {
-      loadUser(storedUserId);
+    const storedMatricula = localStorage.getItem('inovafinance_matricula');
+    if (storedMatricula) {
+      loadUser(parseInt(storedMatricula, 10));
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const loadUser = async (userId: string) => {
+  const loadUser = async (matricula: number) => {
     try {
-      const profile = await getProfile(userId);
+      const profile = await getProfile(matricula);
       if (profile) {
         setUser(profile);
       }
@@ -57,38 +56,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (
-    userId: string, 
+    matricula: number, 
     fullName?: string, 
     email?: string,
     phone?: string,
     initialBalance?: number,
     creditLimit?: number,
-    creditDueDate?: Date,
     creditDueDay?: number
   ): Promise<boolean> => {
     try {
       setIsLoading(true);
-      let profile = await getProfile(userId);
+      let profile = await getProfile(matricula);
       
       if (!profile && fullName) {
-        // Create new profile
+        // Create new profile in Supabase
         await createProfile({
-          userId,
+          userId: matricula,
           fullName,
           email: email || '',
           phone: phone || '',
           initialBalance: initialBalance || 0,
           creditLimit: creditLimit || 5000,
           creditUsed: 0,
-          creditDueDate: creditDueDate,
           creditDueDay: creditDueDay || 5,
         });
-        profile = await getProfile(userId);
+        profile = await getProfile(matricula);
       }
       
       if (profile) {
         setUser(profile);
-        localStorage.setItem('inovafinance_userId', userId);
+        localStorage.setItem('inovafinance_matricula', matricula.toString());
         return true;
       }
       
@@ -103,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('inovafinance_userId');
+    localStorage.removeItem('inovafinance_matricula');
   };
 
   return (
