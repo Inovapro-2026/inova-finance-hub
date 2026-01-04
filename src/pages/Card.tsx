@@ -1,27 +1,33 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Wifi, Eye, EyeOff, Fingerprint } from 'lucide-react';
+import { Shield, Wifi, Eye, EyeOff, Fingerprint, Calendar, AlertCircle } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance } from '@/lib/db';
+import { Progress } from '@/components/ui/progress';
 
 export default function Card() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const [showCVV, setShowCVV] = useState(false);
-  const [balance, setBalance] = useState(0);
+  const [creditUsed, setCreditUsed] = useState(0);
 
   useEffect(() => {
     if (user) {
-      loadBalance();
+      loadData();
     }
   }, [user]);
 
-  const loadBalance = async () => {
+  const loadData = async () => {
     if (!user) return;
-    const { balance: bal } = await calculateBalance(user.userId, user.initialBalance);
-    setBalance(bal);
+    await refreshUser();
+    const { creditUsed: used } = await calculateBalance(user.userId, user.initialBalance);
+    setCreditUsed(used);
   };
+
+  const creditLimit = user?.creditLimit || 5000;
+  const availableCredit = creditLimit - (user?.creditUsed || 0);
+  const creditPercentUsed = ((user?.creditUsed || 0) / creditLimit) * 100;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -36,10 +42,35 @@ export default function Card() {
   };
 
   const getExpiryDate = () => {
+    if (user?.creditDueDate) {
+      const date = new Date(user.creditDueDate);
+      return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`;
+    }
     const date = new Date();
     date.setFullYear(date.getFullYear() + 3);
     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`;
   };
+
+  const getDueDate = () => {
+    if (user?.creditDueDate) {
+      return new Date(user.creditDueDate).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+      });
+    }
+    return 'Não definida';
+  };
+
+  const getDaysUntilDue = () => {
+    if (!user?.creditDueDate) return null;
+    const today = new Date();
+    const dueDate = new Date(user.creditDueDate);
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const daysUntilDue = getDaysUntilDue();
 
   return (
     <motion.div
@@ -160,11 +191,11 @@ export default function Card() {
                 </p>
               </div>
 
-              {/* Balance */}
+              {/* Available Credit */}
               <div className="mt-6 px-6 text-center">
-                <p className="text-[10px] text-white/50 uppercase mb-1">Saldo Disponível</p>
-                <p className="font-display text-2xl font-bold gradient-text">
-                  {formatCurrency(balance)}
+                <p className="text-[10px] text-white/50 uppercase mb-1">Limite Disponível</p>
+                <p className="font-display text-2xl font-bold text-secondary">
+                  {formatCurrency(availableCredit)}
                 </p>
               </div>
 
@@ -193,30 +224,73 @@ export default function Card() {
 
       {/* Card Info */}
       <div className="space-y-4">
+        {/* Limite do Cartão com Progress */}
         <GlassCard className="p-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-muted-foreground text-xs">Limite do Cartão</p>
-              <p className="font-semibold text-lg">{formatCurrency(5000)}</p>
+              <p className="text-muted-foreground text-xs">Limite Total</p>
+              <p className="font-semibold text-lg">{formatCurrency(creditLimit)}</p>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-secondary to-secondary/60 flex items-center justify-center">
               <Shield className="w-6 h-6" />
             </div>
           </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Usado: {formatCurrency(user?.creditUsed || 0)}</span>
+              <span className="text-secondary">Disponível: {formatCurrency(availableCredit)}</span>
+            </div>
+            <Progress 
+              value={creditPercentUsed} 
+              className="h-2 bg-muted"
+            />
+          </div>
         </GlassCard>
 
+        {/* Fatura Atual */}
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-muted-foreground text-xs">Fatura Atual</p>
-              <p className="font-semibold text-lg">{formatCurrency(0)}</p>
+              <p className="font-semibold text-lg">{formatCurrency(user?.creditUsed || 0)}</p>
             </div>
-            <span className="text-xs text-success bg-success/20 px-2 py-1 rounded-full">
-              Em dia
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              (user?.creditUsed || 0) === 0 
+                ? 'text-success bg-success/20' 
+                : 'text-warning bg-warning/20'
+            }`}>
+              {(user?.creditUsed || 0) === 0 ? 'Sem pendências' : 'Em aberto'}
             </span>
           </div>
         </GlassCard>
 
+        {/* Data de Vencimento */}
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-warning" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Data limite</p>
+                <p className="font-medium text-sm">{getDueDate()}</p>
+              </div>
+            </div>
+            {daysUntilDue !== null && (
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                daysUntilDue > 7 
+                  ? 'text-success bg-success/20' 
+                  : daysUntilDue > 0 
+                  ? 'text-warning bg-warning/20'
+                  : 'text-destructive bg-destructive/20'
+              }`}>
+                {daysUntilDue > 0 ? `${daysUntilDue} dias` : 'Vencida'}
+              </span>
+            )}
+          </div>
+        </GlassCard>
+
+        {/* Biometria */}
         <GlassCard className="p-4">
           <div className="flex items-center gap-4">
             <Fingerprint className="w-8 h-8 text-primary" />

@@ -1,11 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getProfile, createProfile, type Profile } from '@/lib/db';
+import { getProfile, createProfile, updateProfile, type Profile } from '@/lib/db';
 
 interface AuthContextType {
   user: Profile | null;
   isLoading: boolean;
-  login: (userId: string, fullName?: string, initialBalance?: number) => Promise<boolean>;
+  login: (
+    userId: string, 
+    fullName?: string, 
+    email?: string,
+    phone?: string,
+    initialBalance?: number,
+    creditLimit?: number,
+    creditDueDate?: Date
+  ) => Promise<boolean>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +46,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (userId: string, fullName?: string, initialBalance?: number): Promise<boolean> => {
+  const refreshUser = async () => {
+    if (user?.userId) {
+      const profile = await getProfile(user.userId);
+      if (profile) {
+        setUser(profile);
+      }
+    }
+  };
+
+  const login = async (
+    userId: string, 
+    fullName?: string, 
+    email?: string,
+    phone?: string,
+    initialBalance?: number,
+    creditLimit?: number,
+    creditDueDate?: Date
+  ): Promise<boolean> => {
     try {
       setIsLoading(true);
       let profile = await getProfile(userId);
@@ -47,7 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await createProfile({
           userId,
           fullName,
+          email: email || '',
+          phone: phone || '',
           initialBalance: initialBalance || 0,
+          creditLimit: creditLimit || 5000,
+          creditUsed: 0,
+          creditDueDate: creditDueDate,
         });
         profile = await getProfile(userId);
       }
@@ -73,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

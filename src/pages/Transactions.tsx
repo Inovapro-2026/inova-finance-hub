@@ -17,7 +17,9 @@ import {
   Briefcase,
   Laptop,
   TrendingUp,
-  Gift
+  Gift,
+  CreditCard,
+  Wallet
 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,7 @@ import {
   INCOME_CATEGORIES,
   type Transaction 
 } from '@/lib/db';
+import { cn } from '@/lib/utils';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Utensils,
@@ -47,11 +50,12 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 };
 
 export default function Transactions() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [paymentMethod, setPaymentMethod] = useState<'debit' | 'credit'>('debit');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -74,15 +78,18 @@ export default function Transactions() {
     await addTransaction({
       amount: parseFloat(amount),
       type: transactionType,
+      paymentMethod: transactionType === 'expense' ? paymentMethod : 'debit',
       category: selectedCategory,
       description: description || selectedCategory,
       date: new Date(),
       userId: user.userId,
     });
 
+    await refreshUser();
     setAmount('');
     setDescription('');
     setSelectedCategory('');
+    setPaymentMethod('debit');
     setShowAddModal(false);
     loadTransactions();
   };
@@ -180,8 +187,11 @@ export default function Transactions() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{transaction.description}</p>
-                      <p className="text-muted-foreground text-xs">
+                      <p className="text-muted-foreground text-xs flex items-center gap-1">
                         {formatDate(transaction.date)} • {category?.label || transaction.category}
+                        {transaction.paymentMethod === 'credit' && (
+                          <span className="text-secondary ml-1">• Crédito</span>
+                        )}
                       </p>
                     </div>
                     <div className="text-right">
@@ -281,6 +291,39 @@ export default function Transactions() {
                   Ganho
                 </button>
               </div>
+
+              {/* Payment Method (only for expenses) */}
+              {transactionType === 'expense' && (
+                <div className="mb-6">
+                  <label className="text-sm font-medium mb-3 block">Pagar com</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPaymentMethod('debit')}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2",
+                        paymentMethod === 'debit'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                          : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      <Wallet className="w-5 h-5" />
+                      Débito
+                    </button>
+                    <button
+                      onClick={() => setPaymentMethod('credit')}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2",
+                        paymentMethod === 'credit'
+                          ? 'bg-secondary/20 text-secondary border border-secondary/50'
+                          : 'bg-muted text-muted-foreground'
+                      )}
+                    >
+                      <CreditCard className="w-5 h-5" />
+                      Crédito
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Amount */}
               <div className="mb-6">
