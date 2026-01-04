@@ -56,7 +56,30 @@ export default function AI() {
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Native TTS fallback function
+  // Get the best Portuguese voice available
+  const getBestVoice = useCallback(() => {
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Priority order for Portuguese voices
+    const ptVoices = voices.filter(v => 
+      v.lang.startsWith('pt') || v.lang.includes('BR') || v.lang.includes('PT')
+    );
+    
+    // Prefer Google or Microsoft voices as they sound better
+    const premiumVoice = ptVoices.find(v => 
+      v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Luciana')
+    );
+    
+    if (premiumVoice) return premiumVoice;
+    
+    // Fallback to any Portuguese voice
+    if (ptVoices.length > 0) return ptVoices[0];
+    
+    // Last resort: any voice
+    return voices[0] || null;
+  }, []);
+
+  // Native TTS function with optimized voice selection
   const fallbackSpeak = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) {
       setIsSpeaking(false);
@@ -65,12 +88,26 @@ export default function AI() {
     
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pt-BR';
+    
+    // Select best voice
+    const voice = getBestVoice();
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+    } else {
+      utterance.lang = 'pt-BR';
+    }
+    
+    // Optimize voice settings for natural sound
+    utterance.rate = 1.0;      // Normal speed (0.5 - 2.0)
+    utterance.pitch = 1.0;     // Normal pitch (0 - 2)
+    utterance.volume = 1.0;    // Full volume (0 - 1)
+    
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [getBestVoice]);
 
   // Text-to-Speech function - tries ElevenLabs, falls back to native
   const speak = useCallback(async (text: string) => {
