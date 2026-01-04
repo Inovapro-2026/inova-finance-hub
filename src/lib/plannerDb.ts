@@ -302,10 +302,15 @@ export async function calculateMonthlySummary(userId: number, salaryAmount: numb
 }
 
 // Get user salary info
-export async function getUserSalaryInfo(userId: number): Promise<{ salaryAmount: number; salaryDay: number } | null> {
+export async function getUserSalaryInfo(userId: number): Promise<{ 
+  salaryAmount: number; 
+  salaryDay: number;
+  advanceAmount: number;
+  advanceDay: number | null;
+} | null> {
   const { data, error } = await supabase
     .from('users_matricula')
-    .select('salary_amount, salary_day')
+    .select('salary_amount, salary_day, advance_amount, advance_day')
     .eq('matricula', userId)
     .maybeSingle();
 
@@ -317,14 +322,34 @@ export async function getUserSalaryInfo(userId: number): Promise<{ salaryAmount:
   return {
     salaryAmount: Number(data.salary_amount) || 0,
     salaryDay: data.salary_day || 5,
+    advanceAmount: Number(data.advance_amount) || 0,
+    advanceDay: data.advance_day || null,
   };
 }
 
 // Update user salary info
-export async function updateUserSalaryInfo(userId: number, salaryAmount: number, salaryDay: number): Promise<boolean> {
+export async function updateUserSalaryInfo(
+  userId: number, 
+  salaryAmount: number, 
+  salaryDay: number,
+  advanceAmount?: number,
+  advanceDay?: number | null
+): Promise<boolean> {
+  const updateData: Record<string, unknown> = { 
+    salary_amount: salaryAmount, 
+    salary_day: salaryDay 
+  };
+  
+  if (advanceAmount !== undefined) {
+    updateData.advance_amount = advanceAmount;
+  }
+  if (advanceDay !== undefined) {
+    updateData.advance_day = advanceDay;
+  }
+
   const { error } = await supabase
     .from('users_matricula')
-    .update({ salary_amount: salaryAmount, salary_day: salaryDay })
+    .update(updateData)
     .eq('matricula', userId);
 
   if (error) {
@@ -333,4 +358,41 @@ export async function updateUserSalaryInfo(userId: number, salaryAmount: number,
   }
 
   return true;
+}
+
+// Check if advance was credited this month
+export async function checkAdvanceCredited(userId: number, monthYear: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('salary_credits')
+    .select('id')
+    .eq('user_matricula', userId)
+    .eq('month_year', `${monthYear}-adv`)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking advance credit:', error);
+    return false;
+  }
+
+  return !!data;
+}
+
+// Calculate days until next payment
+export function calculateDaysUntil(targetDay: number): number {
+  const today = new Date();
+  const currentDay = today.getDate();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  
+  let targetDate = new Date(currentYear, currentMonth, targetDay);
+  
+  // If the target day has passed this month, calculate for next month
+  if (currentDay > targetDay) {
+    targetDate = new Date(currentYear, currentMonth + 1, targetDay);
+  }
+  
+  const diffTime = targetDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays;
 }

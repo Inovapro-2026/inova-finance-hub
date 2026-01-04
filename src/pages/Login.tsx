@@ -31,6 +31,8 @@ export default function Login() {
   const [isClt, setIsClt] = useState<boolean | null>(null);
   const [salaryAmount, setSalaryAmount] = useState('');
   const [salaryDay, setSalaryDay] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
+  const [advanceDay, setAdvanceDay] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -180,6 +182,8 @@ export default function Login() {
           cpf: phone.trim(), // Usando campo cpf para telefone temporariamente
           salary_amount: isClt ? (parseFloat(salaryAmount) || 0) : 0,
           salary_day: isClt ? (parseInt(salaryDay) || 5) : 5,
+          advance_amount: isClt ? (parseFloat(advanceAmount) || 0) : 0,
+          advance_day: isClt && advanceDay ? (parseInt(advanceDay) || null) : null,
         });
       
       if (insertError) throw insertError;
@@ -515,11 +519,11 @@ export default function Login() {
                       />
                     </div>
 
-                    {/* Dia do Pagamento */}
+                    {/* Dia do Pagamento do Salário */}
                     <div className="space-y-2">
                       <label className="text-sm font-medium flex items-center gap-2">
                         <CalendarDays className="w-4 h-4 text-secondary" />
-                        Dia do pagamento
+                        Dia do pagamento do salário
                       </label>
                       <Input
                         type="number"
@@ -535,9 +539,46 @@ export default function Login() {
                         placeholder="Ex: 5"
                         className="bg-muted/50 border-border"
                       />
+                    </div>
+
+                    {/* Valor do Adiantamento */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-blue-500" />
+                        Valor do adiantamento
+                      </label>
+                      <Input
+                        type="number"
+                        value={advanceAmount}
+                        onChange={(e) => setAdvanceAmount(e.target.value)}
+                        placeholder="R$ 0,00 (opcional)"
+                        className="bg-muted/50 border-border"
+                      />
                       <p className="text-xs text-muted-foreground">
-                        Dia do mês que você recebe (1-31)
+                        Deixe em branco se não recebe adiantamento
                       </p>
+                    </div>
+
+                    {/* Dia do Adiantamento */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-blue-500" />
+                        Dia do adiantamento
+                      </label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={advanceDay}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!e.target.value || (val >= 1 && val <= 31)) {
+                            setAdvanceDay(e.target.value);
+                          }
+                        }}
+                        placeholder="Ex: 20"
+                        className="bg-muted/50 border-border"
+                      />
                     </div>
                   </motion.div>
                 )}

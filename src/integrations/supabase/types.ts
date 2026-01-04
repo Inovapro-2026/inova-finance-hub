@@ -245,6 +245,8 @@ export type Database = {
       }
       users_matricula: {
         Row: {
+          advance_amount: number | null
+          advance_day: number | null
           birth_date: string | null
           cpf: string | null
           created_at: string
@@ -261,6 +263,8 @@ export type Database = {
           salary_day: number | null
         }
         Insert: {
+          advance_amount?: number | null
+          advance_day?: number | null
           birth_date?: string | null
           cpf?: string | null
           created_at?: string
@@ -277,6 +281,8 @@ export type Database = {
           salary_day?: number | null
         }
         Update: {
+          advance_amount?: number | null
+          advance_day?: number | null
           birth_date?: string | null
           cpf?: string | null
           created_at?: string
