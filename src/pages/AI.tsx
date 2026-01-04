@@ -69,6 +69,7 @@ export default function AI() {
   const { user, refreshUser } = useAuth();
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [voiceReady, setVoiceReady] = useState(false);
@@ -375,7 +376,7 @@ export default function AI() {
   };
 
   const confirmTransaction = async () => {
-    if (!pendingTransaction || !user) return;
+    if (!pendingTransaction || !user || isSaving) return;
 
     const finalAmount = editingAmount ? parseFloat(editedAmount) : pendingTransaction.amount;
     
@@ -393,30 +394,36 @@ export default function AI() {
       }
     }
 
-    await addTransaction({
-      amount: finalAmount,
-      type: pendingTransaction.type,
-      paymentMethod: pendingTransaction.type === 'expense' ? pendingTransaction.paymentMethod : 'debit',
-      category: pendingTransaction.category,
-      description: pendingTransaction.description,
-      date: new Date(),
-      userId: user.userId,
-    });
+    setIsSaving(true);
+    
+    try {
+      await addTransaction({
+        amount: finalAmount,
+        type: pendingTransaction.type,
+        paymentMethod: pendingTransaction.type === 'expense' ? pendingTransaction.paymentMethod : 'debit',
+        category: pendingTransaction.category,
+        description: pendingTransaction.description,
+        date: new Date(),
+        userId: user.userId,
+      });
 
-    await refreshUser();
+      await refreshUser();
 
-    const methodText = pendingTransaction.type === 'expense' 
-      ? pendingTransaction.paymentMethod === 'credit' ? ' no crédito' : ' no débito'
-      : '';
+      const methodText = pendingTransaction.type === 'expense' 
+        ? pendingTransaction.paymentMethod === 'credit' ? ' no crédito' : ' no débito'
+        : '';
 
-    toast.success('Transação registrada!', {
-      description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}${methodText}`,
-    });
+      toast.success('Transação registrada!', {
+        description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}${methodText}`,
+      });
 
-    speak(`Transação registrada com sucesso${methodText}!`);
-    setPendingTransaction(null);
-    setEditingAmount(false);
-    setStatusText('Pronta para ajudar');
+      speak(`Transação registrada com sucesso${methodText}!`);
+      setPendingTransaction(null);
+      setEditingAmount(false);
+      setStatusText('Pronta para ajudar');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const updateCategory = (categoryId: string) => {

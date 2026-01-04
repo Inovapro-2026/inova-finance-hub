@@ -54,6 +54,7 @@ export default function Transactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [filter, setFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
   const [paymentMethod, setPaymentMethod] = useState<'debit' | 'credit'>('debit');
   const [amount, setAmount] = useState('');
@@ -73,25 +74,31 @@ export default function Transactions() {
   };
 
   const handleAddTransaction = async () => {
-    if (!user || !amount || !selectedCategory) return;
+    if (!user || !amount || !selectedCategory || isSaving) return;
 
-    await addTransaction({
-      amount: parseFloat(amount),
-      type: transactionType,
-      paymentMethod: transactionType === 'expense' ? paymentMethod : 'debit',
-      category: selectedCategory,
-      description: description || selectedCategory,
-      date: new Date(),
-      userId: user.userId,
-    });
+    setIsSaving(true);
+    
+    try {
+      await addTransaction({
+        amount: parseFloat(amount),
+        type: transactionType,
+        paymentMethod: transactionType === 'expense' ? paymentMethod : 'debit',
+        category: selectedCategory,
+        description: description || selectedCategory,
+        date: new Date(),
+        userId: user.userId,
+      });
 
-    await refreshUser();
-    setAmount('');
-    setDescription('');
-    setSelectedCategory('');
-    setPaymentMethod('debit');
-    setShowAddModal(false);
-    loadTransactions();
+      await refreshUser();
+      setAmount('');
+      setDescription('');
+      setSelectedCategory('');
+      setPaymentMethod('debit');
+      setShowAddModal(false);
+      loadTransactions();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -382,10 +389,10 @@ export default function Transactions() {
               {/* Submit */}
               <Button
                 onClick={handleAddTransaction}
-                disabled={!amount || !selectedCategory}
+                disabled={!amount || !selectedCategory || isSaving}
                 className="w-full h-12 bg-gradient-primary hover:opacity-90"
               >
-                Adicionar Transação
+                {isSaving ? 'Salvando...' : 'Adicionar Transação'}
               </Button>
             </motion.div>
           </motion.div>
