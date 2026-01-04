@@ -56,7 +56,23 @@ export default function AI() {
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Text-to-Speech function using ElevenLabs
+  // Native TTS fallback function
+  const fallbackSpeak = useCallback((text: string) => {
+    if (!('speechSynthesis' in window)) {
+      setIsSpeaking(false);
+      return;
+    }
+    
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(utterance);
+  }, []);
+
+  // Text-to-Speech function - tries ElevenLabs, falls back to native
   const speak = useCallback(async (text: string) => {
     if (!voiceEnabled) return;
 
@@ -69,9 +85,9 @@ export default function AI() {
 
     if (!cleanText) return;
 
-    try {
-      setIsSpeaking(true);
+    setIsSpeaking(true);
 
+    try {
       const response = await fetch(
         'https://pahvovxnhqsmcnqncmys.supabase.co/functions/v1/elevenlabs-tts',
         {
@@ -80,6 +96,10 @@ export default function AI() {
           body: JSON.stringify({ text: cleanText }),
         }
       );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -91,27 +111,19 @@ export default function AI() {
       const audio = new Audio(audioUrl);
       
       audio.onended = () => setIsSpeaking(false);
-      audio.onerror = () => setIsSpeaking(false);
+      audio.onerror = () => {
+        setIsSpeaking(false);
+        fallbackSpeak(cleanText);
+      };
       
       audioRef.current = audio;
       await audio.play();
     } catch (error) {
-      console.error('ElevenLabs TTS error:', error);
-      setIsSpeaking(false);
+      console.error('ElevenLabs TTS error, using fallback:', error);
       fallbackSpeak(cleanText);
     }
-  }, [voiceEnabled]);
+  }, [voiceEnabled, fallbackSpeak]);
 
-  const fallbackSpeak = (text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'pt-BR';
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    window.speechSynthesis.speak(utterance);
-  };
 
   const stopSpeaking = useCallback(() => {
     window.speechSynthesis.cancel();
