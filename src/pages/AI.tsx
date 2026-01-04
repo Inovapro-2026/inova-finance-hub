@@ -8,7 +8,7 @@ import { getScheduledPayments, getUserSalaryInfo, calculateMonthlySummary } from
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { speakWithElevenLabs, stopElevenLabsSpeaking, isElevenLabsSpeaking } from '@/services/elevenlabsTtsService';
+import { initNativeTts, speakNative, stopSpeaking as stopNativeSpeaking, hasVoiceSelected } from '@/services/nativeTtsService';
 import { SchedulePaymentModal } from '@/components/SchedulePaymentModal';
 import { addScheduledPayment } from '@/lib/plannerDb';
 
@@ -87,22 +87,28 @@ export default function AI() {
   } | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Initialize ElevenLabs TTS
+  // Initialize native TTS with voice selection
   useEffect(() => {
-    setVoiceReady(true);
+    if (hasVoiceSelected()) {
+      setVoiceReady(true);
+    }
+    
+    initNativeTts(() => {
+      setVoiceReady(true);
+    });
 
     return () => {
-      stopElevenLabsSpeaking();
+      stopNativeSpeaking();
     };
   }, []);
 
-  // TTS function using ElevenLabs voice
+  // TTS function using native voice
   const speak = useCallback(async (text: string) => {
     if (!voiceEnabled) return;
 
     try {
       setIsSpeaking(true);
-      await speakWithElevenLabs(text);
+      await speakNative(text);
       setIsSpeaking(false);
     } catch (err) {
       console.error('TTS error:', err);
@@ -111,7 +117,7 @@ export default function AI() {
   }, [voiceEnabled]);
 
   const handleStopSpeaking = useCallback(() => {
-    stopElevenLabsSpeaking();
+    stopNativeSpeaking();
     setIsSpeaking(false);
   }, []);
 
