@@ -180,7 +180,7 @@ export function AdminClients() {
   const confirmDelete = async () => {
     if (!selectedUser) return;
 
-    const success = await deleteUser(selectedUser.id);
+    const success = await deleteUser(selectedUser.id, selectedUser.matricula);
     if (success) {
       await addAdminLog('delete_user', selectedUser.id, { 
         deleted_user: selectedUser.full_name,
