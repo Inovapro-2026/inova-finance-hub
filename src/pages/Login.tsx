@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Wallet } from 'lucide-react';
+import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar } from 'lucide-react';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,7 +15,11 @@ export default function Login() {
   const [step, setStep] = useState<Step>('matricula');
   const [matricula, setMatricula] = useState('');
   const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
+  const [creditLimit, setCreditLimit] = useState('');
+  const [creditDueDate, setCreditDueDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -61,8 +65,12 @@ export default function Login() {
     try {
       const success = await login(
         matricula, 
-        fullName.trim(), 
-        parseFloat(initialBalance) || 0
+        fullName.trim(),
+        email.trim(),
+        phone.trim(),
+        parseFloat(initialBalance) || 0,
+        parseFloat(creditLimit) || 5000,
+        creditDueDate ? new Date(creditDueDate) : undefined
       );
       
       if (success) {
@@ -75,6 +83,14 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 11) {
+      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+    }
+    return value;
   };
 
   return (
@@ -169,7 +185,7 @@ export default function Login() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="relative z-10 w-full max-w-sm"
+            className="relative z-10 w-full max-w-sm max-h-[80vh] overflow-y-auto"
           >
             <GlassCard className="p-6">
               <h2 className="text-xl font-semibold text-center mb-2">
@@ -180,6 +196,7 @@ export default function Login() {
               </p>
 
               <div className="space-y-4">
+                {/* Nome */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <User className="w-4 h-4 text-primary" />
@@ -193,16 +210,77 @@ export default function Login() {
                   />
                 </div>
 
+                {/* Email */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
-                    <Wallet className="w-4 h-4 text-primary" />
-                    Saldo inicial (opcional)
+                    <Mail className="w-4 h-4 text-primary" />
+                    Email
+                  </label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="bg-muted/50 border-border"
+                  />
+                </div>
+
+                {/* Telefone */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-primary" />
+                    Número de telefone
+                  </label>
+                  <Input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                    placeholder="(00) 00000-0000"
+                    className="bg-muted/50 border-border"
+                    maxLength={15}
+                  />
+                </div>
+
+                {/* Saldo Débito */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-emerald-500" />
+                    Saldo débito (conta)
                   </label>
                   <Input
                     type="number"
                     value={initialBalance}
                     onChange={(e) => setInitialBalance(e.target.value)}
                     placeholder="R$ 0,00"
+                    className="bg-muted/50 border-border"
+                  />
+                </div>
+
+                {/* Limite Crédito */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-secondary" />
+                    Limite de crédito
+                  </label>
+                  <Input
+                    type="number"
+                    value={creditLimit}
+                    onChange={(e) => setCreditLimit(e.target.value)}
+                    placeholder="R$ 5.000,00"
+                    className="bg-muted/50 border-border"
+                  />
+                </div>
+
+                {/* Data Limite Crédito */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-warning" />
+                    Data limite do crédito
+                  </label>
+                  <Input
+                    type="date"
+                    value={creditDueDate}
+                    onChange={(e) => setCreditDueDate(e.target.value)}
                     className="bg-muted/50 border-border"
                   />
                 </div>

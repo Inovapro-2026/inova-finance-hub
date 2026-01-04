@@ -4,7 +4,12 @@ export interface Profile {
   id?: number;
   userId: string;
   fullName: string;
-  initialBalance: number;
+  email?: string;
+  phone?: string;
+  initialBalance: number; // Saldo débito
+  creditLimit: number; // Limite de crédito
+  creditUsed: number; // Crédito usado
+  creditDueDate?: Date; // Data limite do crédito
   biometricId?: string;
   createdAt: Date;
 }
@@ -13,6 +18,7 @@ export interface Transaction {
   id?: number;
   amount: number;
   type: 'income' | 'expense';
+  paymentMethod: 'debit' | 'credit'; // Débito ou crédito
   category: string;
   description: string;
   date: Date;
@@ -36,9 +42,9 @@ export class InovaFinanceDB extends Dexie {
 
   constructor() {
     super('inovafinance');
-    this.version(1).stores({
-      profiles: '++id, userId, fullName',
-      transactions: '++id, userId, type, category, date',
+    this.version(2).stores({
+      profiles: '++id, userId, fullName, email, phone',
+      transactions: '++id, userId, type, category, date, paymentMethod',
       goals: '++id, userId, deadline',
     });
   }
@@ -58,11 +64,28 @@ export async function createProfile(profile: Omit<Profile, 'id' | 'createdAt'>):
   });
 }
 
+export async function updateProfile(userId: string, updates: Partial<Profile>): Promise<number> {
+  const profile = await getProfile(userId);
+  if (profile?.id) {
+    return db.profiles.update(profile.id, updates);
+  }
+  return 0;
+}
+
 export async function getTransactions(userId: string): Promise<Transaction[]> {
   return db.transactions.where('userId').equals(userId).reverse().sortBy('date');
 }
 
 export async function addTransaction(transaction: Omit<Transaction, 'id'>): Promise<number> {
+  // Se for gasto no crédito, atualizar o creditUsed do profile
+  if (transaction.type === 'expense' && transaction.paymentMethod === 'credit') {
+    const profile = await getProfile(transaction.userId);
+    if (profile?.id) {
+      await db.profiles.update(profile.id, {
+        creditUsed: (profile.creditUsed || 0) + transaction.amount,
+      });
+    }
+  }
   return db.transactions.add(transaction);
 }
 
@@ -85,24 +108,35 @@ export async function calculateBalance(userId: string, initialBalance: number): 
   balance: number;
   totalIncome: number;
   totalExpense: number;
+  debitBalance: number;
+  creditUsed: number;
 }> {
   const transactions = await getTransactions(userId);
+  const profile = await getProfile(userId);
   
   let totalIncome = 0;
   let totalExpense = 0;
+  let debitExpense = 0;
   
   transactions.forEach((t) => {
     if (t.type === 'income') {
       totalIncome += t.amount;
     } else {
       totalExpense += t.amount;
+      if (t.paymentMethod === 'debit' || !t.paymentMethod) {
+        debitExpense += t.amount;
+      }
     }
   });
+  
+  const debitBalance = initialBalance + totalIncome - debitExpense;
   
   return {
     balance: initialBalance + totalIncome - totalExpense,
     totalIncome,
     totalExpense,
+    debitBalance,
+    creditUsed: profile?.creditUsed || 0,
   };
 }
 

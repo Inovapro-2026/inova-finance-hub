@@ -6,7 +6,8 @@ import {
   Wallet, 
   Sparkles,
   ArrowUpRight,
-  ArrowDownRight 
+  ArrowDownRight,
+  CreditCard
 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,8 +17,9 @@ import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis
 const CHART_COLORS = ['#7A5CFA', '#4A90FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [balance, setBalance] = useState(0);
+  const [debitBalance, setDebitBalance] = useState(0);
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -33,11 +35,12 @@ export default function Dashboard() {
   const loadData = async () => {
     if (!user) return;
 
-    const { balance: bal, totalIncome: inc, totalExpense: exp } = await calculateBalance(
+    const { balance: bal, totalIncome: inc, totalExpense: exp, debitBalance: debit } = await calculateBalance(
       user.userId,
       user.initialBalance
     );
     setBalance(bal);
+    setDebitBalance(debit);
     setTotalIncome(inc);
     setTotalExpense(exp);
 
@@ -74,7 +77,7 @@ export default function Dashboard() {
       dayTxns.forEach(t => {
         if (t.type === 'income') {
           runningBalance += t.amount;
-        } else {
+        } else if (t.paymentMethod === 'debit' || !t.paymentMethod) {
           runningBalance -= t.amount;
         }
       });
@@ -97,7 +100,7 @@ export default function Dashboard() {
       return "⚠️ Atenção! Seus gastos estão maiores que seus ganhos este mês.";
     } else if (totalIncome > 0 && totalExpense === 0) {
       return "🎯 Ótimo começo! Continue registrando suas transações.";
-    } else if (balance > user?.initialBalance! * 1.1) {
+    } else if (debitBalance > user?.initialBalance! * 1.1) {
       return "🚀 Parabéns! Seu saldo cresceu mais de 10% desde o início!";
     }
     return "💡 Registre suas transações para receber insights personalizados.";
@@ -133,18 +136,21 @@ export default function Dashboard() {
 
       {/* Bento Grid */}
       <div className="bento-grid">
-        {/* Balance Card - Large */}
+        {/* Balance Card - Large (Saldo Débito) */}
         <motion.div variants={itemVariants} className="bento-item-large">
           <GlassCard className="p-6 relative overflow-hidden" glow>
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl" />
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-2">
-                <Wallet className="w-5 h-5 text-primary" />
-                <span className="text-muted-foreground text-sm">Saldo Total</span>
+                <Wallet className="w-5 h-5 text-emerald-500" />
+                <span className="text-muted-foreground text-sm">Saldo Débito</span>
               </div>
-              <h2 className="font-display text-4xl font-bold gradient-text">
-                {formatCurrency(balance)}
+              <h2 className="font-display text-4xl font-bold text-emerald-400">
+                {formatCurrency(debitBalance)}
               </h2>
+              <p className="text-xs text-muted-foreground mt-2">
+                Disponível na conta
+              </p>
             </div>
           </GlassCard>
         </motion.div>
@@ -206,8 +212,8 @@ export default function Dashboard() {
                 <AreaChart data={chartData}>
                   <defs>
                     <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#7A5CFA" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#7A5CFA" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#22C55E" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#22C55E" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis 
@@ -228,7 +234,7 @@ export default function Dashboard() {
                   <Area
                     type="monotone"
                     dataKey="balance"
-                    stroke="#7A5CFA"
+                    stroke="#22C55E"
                     strokeWidth={2}
                     fill="url(#balanceGradient)"
                   />

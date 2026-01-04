@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift } from 'lucide-react';
+import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift, Wallet, CreditCard } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance, getTransactions, addTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/db';
 import { toast } from 'sonner';
@@ -22,6 +22,7 @@ interface FinancialContext {
 interface PendingTransaction {
   amount: number;
   type: 'income' | 'expense';
+  paymentMethod: 'debit' | 'credit';
   category: string;
   description: string;
 }
@@ -42,7 +43,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 export default function AI() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -161,12 +162,13 @@ export default function AI() {
         setPendingTransaction({
           amount: args.amount,
           type: args.type as 'income' | 'expense',
+          paymentMethod: 'debit', // Default to debit, user can change
           category: args.category,
           description: args.description,
         });
         setEditedAmount(args.amount.toString());
         setStatusText('Confirme a transação');
-        speak(`Registrar ${args.type === 'expense' ? 'gasto' : 'ganho'} de ${args.amount} reais em ${args.category}?`);
+        speak(`Registrar ${args.type === 'expense' ? 'gasto' : 'ganho'} de ${args.amount} reais em ${args.category}? Escolha se é débito ou crédito.`);
       } else {
         setStatusText('Pronta para ajudar');
         speak(data.message);
@@ -190,20 +192,36 @@ export default function AI() {
       return;
     }
 
+    // Check credit limit if using credit
+    if (pendingTransaction.type === 'expense' && pendingTransaction.paymentMethod === 'credit') {
+      const availableCredit = (user.creditLimit || 5000) - (user.creditUsed || 0);
+      if (finalAmount > availableCredit) {
+        toast.error(`Limite de crédito insuficiente. Disponível: R$ ${availableCredit.toFixed(2)}`);
+        return;
+      }
+    }
+
     await addTransaction({
       amount: finalAmount,
       type: pendingTransaction.type,
+      paymentMethod: pendingTransaction.type === 'expense' ? pendingTransaction.paymentMethod : 'debit',
       category: pendingTransaction.category,
       description: pendingTransaction.description,
       date: new Date(),
       userId: user.userId,
     });
 
+    await refreshUser();
+
+    const methodText = pendingTransaction.type === 'expense' 
+      ? pendingTransaction.paymentMethod === 'credit' ? ' no crédito' : ' no débito'
+      : '';
+
     toast.success('Transação registrada!', {
-      description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}`,
+      description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}${methodText}`,
     });
 
-    speak('Transação registrada com sucesso!');
+    speak(`Transação registrada com sucesso${methodText}!`);
     setPendingTransaction(null);
     setEditingAmount(false);
     setStatusText('Pronta para ajudar');
@@ -212,6 +230,11 @@ export default function AI() {
   const updateCategory = (categoryId: string) => {
     if (!pendingTransaction) return;
     setPendingTransaction({ ...pendingTransaction, category: categoryId });
+  };
+
+  const updatePaymentMethod = (method: 'debit' | 'credit') => {
+    if (!pendingTransaction) return;
+    setPendingTransaction({ ...pendingTransaction, paymentMethod: method });
   };
 
   const cancelTransaction = () => {
@@ -546,7 +569,7 @@ export default function AI() {
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-sm bg-card border border-border rounded-3xl p-6 shadow-2xl"
+              className="w-full max-w-sm bg-card border border-border rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
             >
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -612,6 +635,47 @@ export default function AI() {
                   </div>
                 )}
               </div>
+
+              {/* Payment Method Selection (only for expenses) */}
+              {pendingTransaction.type === 'expense' && (
+                <div className="mb-6">
+                  <label className="text-xs text-muted-foreground mb-3 block">Pagar com</label>
+                  <div className="flex gap-2">
+                    <motion.button
+                      onClick={() => updatePaymentMethod('debit')}
+                      className={cn(
+                        "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
+                        pendingTransaction.paymentMethod === 'debit'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                          : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
+                      )}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Wallet className="w-6 h-6" />
+                      <span className="text-sm">Débito</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Saldo: R$ {((user?.initialBalance || 0) - (user?.creditUsed || 0)).toFixed(2)}
+                      </span>
+                    </motion.button>
+                    <motion.button
+                      onClick={() => updatePaymentMethod('credit')}
+                      className={cn(
+                        "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
+                        pendingTransaction.paymentMethod === 'credit'
+                          ? 'bg-secondary/20 text-secondary border-secondary/50'
+                          : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
+                      )}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <CreditCard className="w-6 h-6" />
+                      <span className="text-sm">Crédito</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Limite: R$ {((user?.creditLimit || 5000) - (user?.creditUsed || 0)).toFixed(2)}
+                      </span>
+                    </motion.button>
+                  </div>
+                </div>
+              )}
 
               {/* Category Selection */}
               <div className="mb-6">
