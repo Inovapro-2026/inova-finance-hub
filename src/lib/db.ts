@@ -120,7 +120,7 @@ export async function getTransactions(userId: number): Promise<Transaction[]> {
     .from('transactions')
     .select('*, categories(name)')
     .eq('user_matricula', userId)
-    .order('date', { ascending: false });
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching transactions:', error);
@@ -134,7 +134,7 @@ export async function getTransactions(userId: number): Promise<Transaction[]> {
     paymentMethod: (t.payment_method as 'debit' | 'credit') || 'debit',
     category: (t.categories as { name: string } | null)?.name || t.description || 'Outros',
     description: t.description || '',
-    date: new Date(t.date),
+    date: new Date(t.created_at), // Use created_at for full timestamp
     userId: t.user_matricula,
   }));
 }
