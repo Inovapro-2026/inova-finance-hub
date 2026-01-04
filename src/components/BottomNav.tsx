@@ -8,17 +8,20 @@ import {
   CalendarCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-const navItems = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/planner', icon: CalendarCheck, label: 'Planner' },
-  { path: '/ai', icon: Mic, label: 'AI Voice', isCenter: true },
-  { path: '/card', icon: CreditCard, label: 'Cartão' },
-  { path: '/goals', icon: User, label: 'Perfil' },
-];
+import { useAuth } from '@/contexts/AuthContext';
 
 export function BottomNav() {
   const location = useLocation();
+  const { user } = useAuth();
+  
+  // Filtrar itens baseado se usuário tem cartão de crédito
+  const navItems = [
+    { path: '/', icon: Home, label: 'Home' },
+    { path: '/planner', icon: CalendarCheck, label: 'Planner' },
+    { path: '/ai', icon: Mic, label: 'AI Voice', isCenter: true },
+    ...(user?.hasCreditCard ? [{ path: '/card', icon: CreditCard, label: 'Cartão' }] : []),
+    { path: '/goals', icon: User, label: 'Perfil' },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50">
