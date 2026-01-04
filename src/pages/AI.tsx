@@ -443,33 +443,40 @@ export default function AI() {
           transition={{ delay: 0.4 }}
           className="mt-10 flex flex-wrap gap-2 justify-center max-w-sm"
         >
-        {['Gastei 30 no almoço', 'Recebi 1000', 'Qual meu saldo?'].map((tip, i) => (
-            <motion.button
-              key={tip}
-              disabled={isLoading || pendingTransaction !== null}
-              onClick={() => {
-                if (!user) {
-                  toast.error('Faça login para usar');
-                  return;
-                }
-                processMessage(tip);
-              }}
-              className={cn(
-                "px-4 py-2 text-xs bg-muted/30 rounded-full transition-all border border-transparent",
-                isLoading || pendingTransaction 
-                  ? "opacity-50 cursor-not-allowed" 
-                  : "hover:bg-primary/20 hover:text-primary hover:border-primary/30 cursor-pointer"
-              )}
-              whileHover={!isLoading && !pendingTransaction ? { scale: 1.05 } : undefined}
-              whileTap={!isLoading && !pendingTransaction ? { scale: 0.95 } : undefined}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + i * 0.1 }}
-            >
-              <Sparkles className="w-3 h-3 inline mr-1.5" />
-              {tip}
-            </motion.button>
-          ))}
+        {[
+            { label: 'Qual meu saldo?', icon: Target },
+            { label: 'Quanto gastei hoje?', icon: ArrowDown },
+            { label: 'Quanto ganhei hoje?', icon: ArrowUp },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <motion.button
+                key={item.label}
+                disabled={isLoading || pendingTransaction !== null}
+                onClick={() => {
+                  if (!user) {
+                    toast.error('Faça login para usar');
+                    return;
+                  }
+                  processMessage(item.label);
+                }}
+                className={cn(
+                  "px-4 py-2.5 text-xs bg-muted/30 rounded-full transition-all border border-transparent flex items-center gap-2",
+                  isLoading || pendingTransaction 
+                    ? "opacity-50 cursor-not-allowed" 
+                    : "hover:bg-primary/20 hover:text-primary hover:border-primary/30 cursor-pointer"
+                )}
+                whileHover={!isLoading && !pendingTransaction ? { scale: 1.05 } : undefined}
+                whileTap={!isLoading && !pendingTransaction ? { scale: 0.95 } : undefined}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.1 }}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {item.label}
+              </motion.button>
+            );
+          })}
         </motion.div>
       </div>
 
