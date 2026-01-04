@@ -89,31 +89,29 @@ export default function Card() {
       </motion.div>
 
       {/* 3D Card Container */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 perspective-1000"
+      <div
+        className="mb-8"
         style={{ perspective: '1000px' }}
       >
         <motion.div
-          className={`relative w-full aspect-[1.586/1] max-w-sm mx-auto cursor-pointer transition-all duration-700 transform-style-3d ${
-            isFlipped ? '[transform:rotateY(180deg)]' : ''
-          }`}
-          style={{ 
-            transformStyle: 'preserve-3d',
-            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)'
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ 
+            opacity: 1, 
+            y: 0,
+            rotateY: isFlipped ? 180 : 0
           }}
+          transition={{ 
+            opacity: { duration: 0.3 },
+            y: { duration: 0.3 },
+            rotateY: { duration: 0.6, ease: 'easeInOut' }
+          }}
+          className="relative w-full aspect-[1.586/1] max-w-sm mx-auto cursor-pointer"
+          style={{ transformStyle: 'preserve-3d' }}
           onClick={() => setIsFlipped(!isFlipped)}
-          whileHover={{ 
-            rotateX: isFlipped ? 0 : 5,
-            rotateY: isFlipped ? 185 : -5,
-            scale: 1.02
-          }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         >
           {/* Front of Card */}
           <div 
-            className="absolute inset-0 backface-hidden"
+            className="absolute inset-0"
             style={{ backfaceVisibility: 'hidden' }}
           >
             <div className="w-full h-full rounded-2xl p-6 bg-gradient-to-br from-[#0a0a0f] via-[#0d0d15] to-[#05050a] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_100px_rgba(139,92,246,0.1)] overflow-hidden">
@@ -180,7 +178,7 @@ export default function Card() {
 
           {/* Back of Card */}
           <div 
-            className="absolute inset-0 backface-hidden"
+            className="absolute inset-0"
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#0a0a0f] via-[#0d0d15] to-[#05050a] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col">
@@ -231,7 +229,7 @@ export default function Card() {
             </div>
           </div>
         </motion.div>
-      </motion.div>
+      </div>
 
       {/* Tip */}
       <motion.p
