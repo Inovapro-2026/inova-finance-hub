@@ -444,11 +444,16 @@ export default function AI() {
           className="mt-10 flex flex-wrap gap-2 justify-center max-w-sm"
         >
         {[
-            { label: 'Qual meu saldo?', icon: Target },
-            { label: 'Quanto gastei hoje?', icon: ArrowDown },
-            { label: 'Quanto ganhei hoje?', icon: ArrowUp },
+            { label: 'Qual meu saldo?', icon: Target, color: 'blue' },
+            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
+            { label: 'Quanto ganhei hoje?', icon: ArrowUp, color: 'green' },
           ].map((item, i) => {
             const Icon = item.icon;
+            const colorClasses = {
+              blue: 'hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]',
+              red: 'hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)]',
+              green: 'hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]',
+            };
             return (
               <motion.button
                 key={item.label}
@@ -461,10 +466,10 @@ export default function AI() {
                   processMessage(item.label);
                 }}
                 className={cn(
-                  "px-4 py-2.5 text-xs bg-muted/30 rounded-full transition-all border border-transparent flex items-center gap-2",
+                  "px-4 py-2.5 text-xs bg-muted/30 rounded-full transition-all duration-300 border border-transparent flex items-center gap-2",
                   isLoading || pendingTransaction 
                     ? "opacity-50 cursor-not-allowed" 
-                    : "hover:bg-primary/20 hover:text-primary hover:border-primary/30 cursor-pointer"
+                    : cn("cursor-pointer", colorClasses[item.color as keyof typeof colorClasses])
                 )}
                 whileHover={!isLoading && !pendingTransaction ? { scale: 1.05 } : undefined}
                 whileTap={!isLoading && !pendingTransaction ? { scale: 0.95 } : undefined}
