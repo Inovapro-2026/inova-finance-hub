@@ -26,16 +26,26 @@ serve(async (req) => {
 
     console.log('TTS request received for text:', text.substring(0, 50) + '...');
 
-    // Using ElevenLabs API with Brazilian Portuguese male voice
-    // Voice ID: ErXwobaYiN019PkySvjV (Antoni - deep male voice, works great for PT-BR)
-    // Alternative voices:
-    // - "pNInz6obpgDQGcFmaJgB" (Adam - deep male)
-    // - "VR6AewLTigWG4xSOukaG" (Arnold - deep male)
-    // - "yoZ06aMxZJJ28mfd3POQ" (Sam - deep male)
-    const voiceId = "pNInz6obpgDQGcFmaJgB"; // Adam - deep male voice
+    // Limpar emojis e formatação do texto
+    const cleanText = text
+      .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+      .replace(/\*\*/g, '')
+      .replace(/💸|💰|📊|📈|📉|📅|📌|🏆|😤|😒|🤡|😱|😭|🔥|💀|🎉|🙏|💪|💵|🚨|😐|💔|😩|🌪️|☕|🍕|🏥|🚲|🌉|😰|🎊|💳|🙄|👀|✍️|🤔|😅/g, '')
+      .trim();
+
+    if (!cleanText) {
+      return new Response(
+        JSON.stringify({ error: 'No text to speak after cleaning' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Using ElevenLabs API with Brazilian Portuguese voice
+    // Voice: Brian - warm friendly male voice that sounds great speaking Portuguese
+    const voiceId = "nPczCjzI2devNBz1zQrb"; // Brian - friendly voice
     
     const response = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
       {
         method: 'POST',
         headers: {
@@ -43,13 +53,14 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          text: text,
-          model_id: 'eleven_multilingual_v2', // Supports Brazilian Portuguese
+          text: cleanText,
+          model_id: 'eleven_multilingual_v2', // Supports Brazilian Portuguese with native accent
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.8,
-            style: 0.3,
-            use_speaker_boost: true
+            stability: 0.4, // Lower for more expressive/funny delivery
+            similarity_boost: 0.75,
+            style: 0.6, // Higher style for more personality
+            use_speaker_boost: true,
+            speed: 1.05 // Slightly faster for comedic timing
           }
         }),
       }
