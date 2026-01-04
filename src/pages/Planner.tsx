@@ -58,6 +58,19 @@ const CATEGORY_ICONS: Record<string, string> = {
   outros: '📋',
 };
 
+const CATEGORY_LABELS: Record<string, string> = {
+  aluguel: 'Aluguel',
+  energia: 'Energia',
+  agua: 'Água',
+  internet: 'Internet',
+  telefone: 'Telefone',
+  academia: 'Academia',
+  streaming: 'Streaming',
+  seguro: 'Seguro',
+  escola: 'Escola',
+  outros: 'Outros',
+};
+
 export default function Planner() {
   const { user, refreshUser } = useAuth();
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -353,7 +366,9 @@ export default function Planner() {
             <span className="text-xs text-muted-foreground">Maior Gasto</span>
           </div>
           <p className="text-sm font-bold text-yellow-600 truncate">
-            {monthlySummary?.heaviestPayment?.name || '-'}
+            {monthlySummary?.heaviestPayment 
+              ? CATEGORY_LABELS[monthlySummary.heaviestPayment.category] || monthlySummary.heaviestPayment.name
+              : '-'}
           </p>
           <p className="text-[10px] text-muted-foreground">
             {monthlySummary?.heaviestPayment ? formatCurrency(monthlySummary.heaviestPayment.amount) : '-'}
