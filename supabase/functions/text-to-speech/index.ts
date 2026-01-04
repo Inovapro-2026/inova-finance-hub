@@ -26,10 +26,10 @@ serve(async (req) => {
 
     console.log('TTS request received for text:', text.substring(0, 50) + '...');
 
-    // Using facebook/mms-tts-por for Portuguese (more stable)
-    // Alternative: espnet/kan-bayashi_ljspeech_vits for English
+    // Using facebook/mms-tts-por for Portuguese Brazilian (natural voice)
+    // NEW endpoint: router.huggingface.co (old api-inference is deprecated)
     const response = await fetch(
-      'https://api-inference.huggingface.co/models/facebook/mms-tts-por',
+      'https://router.huggingface.co/hf-inference/models/facebook/mms-tts-por',
       {
         method: 'POST',
         headers: {

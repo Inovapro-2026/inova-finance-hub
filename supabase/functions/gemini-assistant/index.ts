@@ -12,6 +12,10 @@ interface RequestBody {
     balance: number;
     totalIncome: number;
     totalExpense: number;
+    creditLimit: number;
+    creditUsed: number;
+    creditDueDay: number;
+    daysUntilDue: number;
     recentTransactions: Array<{
       amount: number;
       type: string;
@@ -99,6 +103,8 @@ serve(async (req) => {
     const transactionKeywords = /gastei|gasto|comprei|paguei|pagar|recebi|ganhei|entrou|gastando|compra|despesa|renda|salário|freelance|receita|custa|custou|investi/i;
     const isTransactionRequest = transactionKeywords.test(message);
 
+    const creditAvailable = (context.creditLimit || 0) - (context.creditUsed || 0);
+    
     const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, engraçado e sem papas na língua. Você é aquele tio chato que fala a verdade na cara, mas de um jeito que faz rir e refletir.
 
 PERSONALIDADE OBRIGATÓRIA:
@@ -114,12 +120,18 @@ REGRAS CRÍTICAS:
 - SEMPRE que o usuário mencionar uma RECEITA (recebi, ganhei, entrou dinheiro, etc) com valor, USE A FUNÇÃO record_transaction com type="income"
 - NÃO responda com texto simples quando há um valor monetário mencionado - USE A FUNÇÃO!
 - Se não entender o valor ou a descrição, PERGUNTE de forma engraçada
+- Quando perguntarem sobre LIMITE, CRÉDITO, CARTÃO ou VENCIMENTO, INCLUA as informações de crédito na resposta
 
 CONTEXTO FINANCEIRO ATUAL:
-- Saldo: R$ ${context.balance.toFixed(2)}
+- Saldo Débito: R$ ${context.balance.toFixed(2)}
 - Receitas: R$ ${context.totalIncome.toFixed(2)}
 - Gastos: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
+- Limite de Crédito Total: R$ ${(context.creditLimit || 0).toFixed(2)}
+- Crédito Usado: R$ ${(context.creditUsed || 0).toFixed(2)}
+- Crédito Disponível: R$ ${creditAvailable.toFixed(2)}
+- Dia de Vencimento da Fatura: ${context.creditDueDay || 5}
+- Dias até o Vencimento: ${context.daysUntilDue || 0} dias
 
 CATEGORIAS (escolha a mais apropriada):
 - food = alimentação, comida, restaurante, pizza, lanche, almoço, jantar, café
