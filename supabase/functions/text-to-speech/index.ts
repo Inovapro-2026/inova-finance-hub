@@ -18,47 +18,65 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
-    const HF_TOKEN = Deno.env.get('HUGGING_FACE_ACCESS_TOKEN');
+    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
     
-    if (!HF_TOKEN) {
-      throw new Error('Hugging Face token not configured');
+    if (!ELEVENLABS_API_KEY) {
+      throw new Error('ElevenLabs API key not configured');
     }
 
     console.log('TTS request received for text:', text.substring(0, 50) + '...');
 
-    // Using facebook/mms-tts-por for Portuguese Brazilian (natural voice)
-    // NEW endpoint: router.huggingface.co (old api-inference is deprecated)
+    // Using ElevenLabs API with Brazilian Portuguese male voice
+    // Voice ID: ErXwobaYiN019PkySvjV (Antoni - deep male voice, works great for PT-BR)
+    // Alternative voices:
+    // - "pNInz6obpgDQGcFmaJgB" (Adam - deep male)
+    // - "VR6AewLTigWG4xSOukaG" (Arnold - deep male)
+    // - "yoZ06aMxZJJ28mfd3POQ" (Sam - deep male)
+    const voiceId = "pNInz6obpgDQGcFmaJgB"; // Adam - deep male voice
+    
     const response = await fetch(
-      'https://router.huggingface.co/hf-inference/models/facebook/mms-tts-por',
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${HF_TOKEN}`,
+          'xi-api-key': ELEVENLABS_API_KEY,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ inputs: text }),
+        body: JSON.stringify({
+          text: text,
+          model_id: 'eleven_multilingual_v2', // Supports Brazilian Portuguese
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.8,
+            style: 0.3,
+            use_speaker_boost: true
+          }
+        }),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Hugging Face API error:', response.status, errorText);
+      console.error('ElevenLabs API error:', response.status, errorText);
       
-      // If model is loading, return a message
-      if (response.status === 503) {
+      if (response.status === 401) {
+        throw new Error('ElevenLabs API key invalid');
+      }
+      
+      if (response.status === 429) {
         return new Response(
           JSON.stringify({ 
-            error: 'Model is loading, please try again in a few seconds',
+            error: 'Rate limit exceeded, please try again later',
             loading: true 
           }),
           { 
-            status: 503,
+            status: 429,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
       
-      throw new Error(`HF API error: ${response.status}`);
+      throw new Error(`ElevenLabs API error: ${response.status}`);
     }
 
     // Get the audio as array buffer
@@ -72,7 +90,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         audio: base64Audio,
-        contentType: 'audio/wav'
+        contentType: 'audio/mpeg'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
