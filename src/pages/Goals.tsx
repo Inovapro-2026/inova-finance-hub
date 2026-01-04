@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash, DollarSign, CalendarDays } from 'lucide-react';
+import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash, DollarSign, CalendarDays, LogOut } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { getGoals, addGoal, updateGoal, updateProfile, type Goal } from '@/lib/db';
 import { updateUserSalaryInfo, getUserSalaryInfo } from '@/lib/plannerDb';
 import { toast } from 'sonner';
 
 export default function Goals() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'goals'>('profile');
@@ -454,6 +456,19 @@ export default function Goals() {
               )}
             </div>
           </GlassCard>
+
+          {/* Logout Button */}
+          <Button
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            variant="outline"
+            className="w-full mt-6 py-6 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            Sair da conta
+          </Button>
         </div>
       ) : (
         <>
