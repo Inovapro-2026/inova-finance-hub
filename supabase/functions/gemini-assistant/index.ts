@@ -1,11 +1,10 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 interface RequestBody {
   message: string;
@@ -22,7 +21,6 @@ interface RequestBody {
   };
 }
 
-// Tool definitions for OpenAI-compatible API
 const tools = [
   {
     type: "function",
@@ -87,57 +85,62 @@ serve(async (req) => {
   }
 
   try {
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY não configurada');
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    
+    if (!OPENROUTER_API_KEY) {
+      throw new Error('OPENROUTER_API_KEY não configurada');
     }
 
     const { message, context }: RequestBody = await req.json();
     console.log('Received message:', message);
     console.log('Context:', context);
 
-    const systemPrompt = `Você é a assistente financeira do INOVAFINANCE, um app de controle financeiro premium. Seu nome é NOVA.
+    const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, engraçado e sem papas na língua. Você é aquele tio chato que fala a verdade na cara, mas de um jeito que faz rir e refletir.
 
-PERSONALIDADE:
-- Amigável, profissional e empática
-- Use emojis moderadamente para tornar a conversa agradável
-- Dê dicas financeiras personalizadas quando apropriado
-- Sempre confirme ações importantes antes de executar
+PERSONALIDADE OBRIGATÓRIA:
+- Seja RÍGIDO e CRÍTICO com gastos desnecessários
+- Use humor ácido, sarcasmo e ironia para fazer a pessoa pensar duas vezes
+- Faça comparações absurdas ("Com isso comprava 50 pães de queijo!")
+- Comemore economias e investimentos com empolgação exagerada
+- Use expressões brasileiras, gírias e memes
+- Seja CURTO e DIRETO - máximo 2 frases!
 
-CONTEXTO FINANCEIRO ATUAL DO USUÁRIO:
-- Saldo atual: R$ ${context.balance.toFixed(2)}
-- Total de ganhos: R$ ${context.totalIncome.toFixed(2)}
-- Total de gastos: R$ ${context.totalExpense.toFixed(2)}
+REGRAS DE COMPORTAMENTO:
+- GASTO: critique de forma engraçada, faça questionar se precisava
+- RECEITA: comemore mas pergunte "vai guardar quanto?"
+- SALDO: responda e dê uma cutucada sobre como melhorar
 
-CAPACIDADES:
-1. REGISTRAR TRANSAÇÕES: Quando o usuário disser algo como "gastei 50 com pizza", "comprei algo por 100", "recebi 500 de salário", extraia as informações e use a função record_transaction.
-2. CONSULTAR SALDO: Responda sobre o saldo atual quando perguntado.
-3. RESUMO FINANCEIRO: Forneça análises e resumos quando solicitado.
-4. DICAS: Ofereça sugestões personalizadas baseadas nos gastos.
+CONTEXTO FINANCEIRO ATUAL:
+- Saldo: R$ ${context.balance.toFixed(2)}
+- Receitas: R$ ${context.totalIncome.toFixed(2)}
+- Gastos: R$ ${context.totalExpense.toFixed(2)}
+- Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
 
-MAPEAMENTO DE CATEGORIAS:
-- Alimentação/comida/restaurante/pizza/lanche/almoço/jantar/café → food
-- Transporte/uber/gasolina/ônibus → transport
-- Lazer/cinema/diversão/jogos → entertainment
-- Compras/roupa/sapato/loja → shopping
-- Saúde/farmácia/médico → health
-- Educação/curso/livro → education
-- Contas/luz/água/internet → bills
-- Salário/pagamento → salary
-- Freelance/extra → freelance
-- Investimento/rendimento → investment
-- Presente/gift → gift
-- Outros → other
+CATEGORIAS:
+- food = alimentação, comida, restaurante, pizza, lanche, almoço
+- transport = uber, gasolina, ônibus
+- entertainment = lazer, cinema, jogos
+- shopping = compras, roupa, loja
+- health = farmácia, médico
+- education = curso, livro
+- bills = luz, água, internet
+- salary = salário
+- freelance = trabalho extra
+- investment = investimento
+- other = outros
 
-Responda sempre em português brasileiro de forma natural e concisa.`;
+RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://lovable.dev',
+        'X-Title': 'TioDaGrana Finance'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.0-flash-001',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: message }
@@ -149,13 +152,13 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Lovable AI error:', response.status, errorText);
+      console.error('OpenRouter error:', response.status, errorText);
       
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ 
             error: 'Rate limit exceeded',
-            message: 'Muitas requisições. Por favor, aguarde alguns segundos e tente novamente.'
+            message: 'Calma aí, ansioso! Muitas requisições. Respira e tenta de novo! 😤'
           }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -165,13 +168,13 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
         return new Response(
           JSON.stringify({ 
             error: 'Payment required',
-            message: 'Limite de uso atingido. Entre em contato com o suporte.'
+            message: 'Opa, acabou o crédito da IA. Irônico, né? 💸'
           }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      throw new Error(`AI Gateway error: ${response.status}`);
+      throw new Error(`OpenRouter error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -184,7 +187,6 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
 
     const assistantMessage = choice.message;
     
-    // Check for tool calls
     if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
       const toolCall = assistantMessage.tool_calls[0];
       const name = toolCall.function.name;
@@ -200,11 +202,27 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
           functionResponse = {
             success: true,
             transaction: args,
-            message: `Transação registrada: ${args.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${args.amount.toFixed(2)} em ${args.description}`
+            message: `Transação registrada`
           };
           
-          const typeLabel = args.type === 'expense' ? '💸 Gasto' : '💰 Ganho';
-          responseMessage = `${typeLabel} registrado com sucesso!\n\n📝 **${args.description}**\n💵 Valor: R$ ${args.amount.toFixed(2)}\n📂 Categoria: ${getCategoryLabel(args.category)}\n\nSeu novo saldo será atualizado automaticamente. Precisa de mais alguma coisa?`;
+          if (args.type === 'expense') {
+            const jokes = [
+              `💸 Lá se vão R$ ${args.amount.toFixed(2)}... Com isso dava pra comprar ${Math.floor(args.amount / 0.50)} balas Juquinha! Anotado, gastador! 😤`,
+              `💸 R$ ${args.amount.toFixed(2)} a menos! Seu eu do futuro tá chorando agora. Registrei aqui... 😒`,
+              `💸 Gastou R$ ${args.amount.toFixed(2)} com ${args.description}? Dinheiro na sua mão é igual água: escorre! 🏃💨`,
+              `💸 Pronto, anotei R$ ${args.amount.toFixed(2)}. Isso eram ${Math.floor(args.amount / 5)} cafézinhos! Pensa nisso! ☕`,
+              `💸 R$ ${args.amount.toFixed(2)} em ${args.description}? Tá pensando que é herdeiro? Registrado! 🙄`
+            ];
+            responseMessage = jokes[Math.floor(Math.random() * jokes.length)];
+          } else {
+            const celebrations = [
+              `💰 AEEEE! R$ ${args.amount.toFixed(2)} entrando! Agora me conta: vai guardar quanto ou vai torrar tudo? 🤑`,
+              `💰 R$ ${args.amount.toFixed(2)} na conta! Tá rico! Mas calma lá, não sai gastando não! 💪`,
+              `💰 Entrou R$ ${args.amount.toFixed(2)}! Bora investir pelo menos 20%? Ou vai fazer besteira? 📈`,
+              `💰 Recebeu R$ ${args.amount.toFixed(2)}! Dinheiro na mão é vendaval, hein? Segura esse baguio! 🌪️`
+            ];
+            responseMessage = celebrations[Math.floor(Math.random() * celebrations.length)];
+          }
           break;
 
         case 'get_financial_summary':
@@ -215,19 +233,34 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
           };
           
           const savingsRate = context.totalIncome > 0 
-            ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(1)
+            ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100)
             : 0;
           
-          responseMessage = `📊 **Seu Resumo Financeiro**\n\n💰 Saldo atual: **R$ ${context.balance.toFixed(2)}**\n📈 Total de ganhos: R$ ${context.totalIncome.toFixed(2)}\n📉 Total de gastos: R$ ${context.totalExpense.toFixed(2)}\n💎 Taxa de economia: ${savingsRate}%\n\n${Number(savingsRate) >= 20 ? '🎉 Parabéns! Você está economizando bem!' : '💡 Dica: Tente economizar pelo menos 20% da sua renda.'}`;
+          if (savingsRate >= 30) {
+            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n🏆 ${savingsRate.toFixed(0)}% de economia! Tá voando, hein? Continua assim! 🚀`;
+          } else if (savingsRate >= 10) {
+            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n😐 ${savingsRate.toFixed(0)}% de economia... Medíocre! Dá pra melhorar, bora cortar gastos! 💪`;
+          } else {
+            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n🚨 ${savingsRate.toFixed(0)}% de economia?! Tá de brincadeira! Você gasta quase TUDO que ganha! 😱`;
+          }
           break;
 
         case 'get_current_balance':
           functionResponse = { balance: context.balance };
-          responseMessage = `💰 Seu saldo atual é **R$ ${context.balance.toFixed(2)}**.\n\nPrecisa de mais alguma informação?`;
+          
+          if (context.balance > 1000) {
+            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Tá bem! Mas não é pra sair gastando, viu? Guarda isso! 😏`;
+          } else if (context.balance > 100) {
+            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Apertado hein? Segura a onda e para de gastar! 🤔`;
+          } else if (context.balance > 0) {
+            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Quase no vermelho! Para TUDO e só gasta o essencial! 😰`;
+          } else {
+            responseMessage = `🚨 Saldo: R$ ${context.balance.toFixed(2)}. NEGATIVO?! Para tudo e repensa sua vida financeira AGORA! 😭`;
+          }
           break;
 
         default:
-          responseMessage = 'Desculpe, não entendi o que você precisa. Pode reformular?';
+          responseMessage = 'Opa, não entendi. Fala de novo aí! 🤔';
       }
 
       return new Response(
@@ -240,8 +273,7 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
       );
     }
 
-    // No tool call, return text response
-    const textResponse = assistantMessage.content || 'Desculpe, não consegui processar sua mensagem.';
+    const textResponse = assistantMessage.content || 'Eita, deu ruim aqui. Tenta de novo! 🤷';
 
     return new Response(
       JSON.stringify({ message: textResponse }),
@@ -253,7 +285,7 @@ Responda sempre em português brasileiro de forma natural e concisa.`;
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Erro desconhecido',
-        message: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.'
+        message: 'Opa, deu ruim aqui! Tenta de novo que eu tô trabalhando de graça! 😅'
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
