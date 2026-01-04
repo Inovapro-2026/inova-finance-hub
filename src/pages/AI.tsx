@@ -548,9 +548,9 @@ export default function AI() {
           className="mt-10 flex flex-wrap gap-2 justify-center max-w-sm"
         >
         {[
-            { label: 'Qual meu saldo?', icon: Target, color: 'blue' },
-            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
-            { label: 'Me lembre de pagar', icon: Calendar, color: 'purple' },
+            { label: 'Gastei 50 no almoço', icon: ArrowDown, color: 'red' },
+            { label: 'Recebi 200 de freelance', icon: ArrowUp, color: 'green' },
+            { label: 'Paguei 150 de uber', icon: ArrowDown, color: 'purple' },
           ].map((item, i) => {
             const Icon = item.icon;
             const colorClasses: Record<string, string> = {
