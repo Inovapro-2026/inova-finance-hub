@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift, Wallet, CreditCard } from 'lucide-react';
+import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift, Wallet, CreditCard, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance, getTransactions, addTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/db';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { initNativeTts, speakNative, stopSpeaking as stopNativeSpeaking, hasVoiceSelected } from '@/services/nativeTtsService';
+import { SchedulePaymentModal } from '@/components/SchedulePaymentModal';
+import { addScheduledPayment } from '@/lib/plannerDb';
 
 interface FinancialContext {
   balance: number;
@@ -48,6 +51,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 export default function AI() {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -60,6 +64,7 @@ export default function AI() {
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   const [editingAmount, setEditingAmount] = useState(false);
   const [editedAmount, setEditedAmount] = useState('');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   // Initialize native TTS with voice selection
@@ -144,11 +149,33 @@ export default function AI() {
     };
   };
 
+  // Check for schedule payment command
+  const isScheduleCommand = (message: string): boolean => {
+    const normalizedMessage = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const schedulePatterns = [
+      'inova me lembre',
+      'inova lembre',
+      'me lembre de pagar',
+      'agendar pagamento',
+      'lembrete de pagamento',
+      'agendar lembrete',
+    ];
+    return schedulePatterns.some(pattern => normalizedMessage.includes(pattern));
+  };
+
   const processMessage = async (message: string) => {
     if (!message.trim()) return;
     
     if (!user) {
       toast.error('Faça login para usar a assistente');
+      return;
+    }
+
+    // Check for schedule payment command
+    if (isScheduleCommand(message)) {
+      speak('Abrindo o agendador de pagamentos. Configure seu lembrete no formulário.');
+      setShowScheduleModal(true);
+      setStatusText('Agendar pagamento');
       return;
     }
 
@@ -310,9 +337,48 @@ export default function AI() {
 
   const categories = pendingTransaction?.type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
+  const handleSchedulePayment = async (payment: {
+    name: string;
+    amount: number;
+    dueDay: number;
+    isRecurring: boolean;
+    specificMonth?: Date;
+    category: string;
+  }) => {
+    if (!user) return;
+
+    const id = await addScheduledPayment({
+      userId: user.userId,
+      name: payment.name,
+      amount: payment.amount,
+      dueDay: payment.dueDay,
+      isRecurring: payment.isRecurring,
+      specificMonth: payment.specificMonth || null,
+      category: payment.category,
+      lastPaidAt: null,
+    });
+
+    if (id) {
+      toast.success('Pagamento agendado!');
+      speak('Pagamento agendado com sucesso!');
+      setStatusText('Pronta para ajudar');
+    } else {
+      toast.error('Erro ao agendar pagamento');
+    }
+  };
+
   return (
-    <motion.div
-      className="min-h-screen pb-28 flex flex-col relative overflow-hidden"
+    <>
+      <SchedulePaymentModal
+        isOpen={showScheduleModal}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setStatusText('Pronta para ajudar');
+        }}
+        onSchedule={handleSchedulePayment}
+      />
+      <motion.div
+        className="min-h-screen pb-28 flex flex-col relative overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -484,13 +550,14 @@ export default function AI() {
         {[
             { label: 'Qual meu saldo?', icon: Target, color: 'blue' },
             { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
-            { label: 'Quanto ganhei hoje?', icon: ArrowUp, color: 'green' },
+            { label: 'Me lembre de pagar', icon: Calendar, color: 'purple' },
           ].map((item, i) => {
             const Icon = item.icon;
-            const colorClasses = {
+            const colorClasses: Record<string, string> = {
               blue: 'hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]',
               red: 'hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)]',
               green: 'hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]',
+              purple: 'hover:bg-purple-500/20 hover:text-purple-400 hover:border-purple-500/40 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]',
             };
             return (
               <motion.button
@@ -741,7 +808,8 @@ export default function AI() {
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+      </motion.div>
+    </>
   );
 }
 

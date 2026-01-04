@@ -80,6 +80,119 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_logs: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          name: string
+          paid_at: string
+          payment_type: string
+          scheduled_payment_id: string | null
+          user_matricula: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          name: string
+          paid_at?: string
+          payment_type?: string
+          scheduled_payment_id?: string | null
+          user_matricula: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          name?: string
+          paid_at?: string
+          payment_type?: string
+          scheduled_payment_id?: string | null
+          user_matricula?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_logs_scheduled_payment_id_fkey"
+            columns: ["scheduled_payment_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salary_credits: {
+        Row: {
+          amount: number
+          created_at: string
+          credited_at: string
+          id: string
+          month_year: string
+          user_matricula: number
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credited_at?: string
+          id?: string
+          month_year: string
+          user_matricula: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credited_at?: string
+          id?: string
+          month_year?: string
+          user_matricula?: number
+        }
+        Relationships: []
+      }
+      scheduled_payments: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          due_day: number
+          id: string
+          is_active: boolean
+          is_recurring: boolean
+          last_paid_at: string | null
+          name: string
+          specific_month: string | null
+          updated_at: string
+          user_matricula: number
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          due_day: number
+          id?: string
+          is_active?: boolean
+          is_recurring?: boolean
+          last_paid_at?: string | null
+          name: string
+          specific_month?: string | null
+          updated_at?: string
+          user_matricula: number
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          due_day?: number
+          id?: string
+          is_active?: boolean
+          is_recurring?: boolean
+          last_paid_at?: string | null
+          name?: string
+          specific_month?: string | null
+          updated_at?: string
+          user_matricula?: number
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
@@ -144,6 +257,8 @@ export type Database = {
           initial_balance: number | null
           matricula: number
           phone: string | null
+          salary_amount: number | null
+          salary_day: number | null
         }
         Insert: {
           birth_date?: string | null
@@ -158,6 +273,8 @@ export type Database = {
           initial_balance?: number | null
           matricula: number
           phone?: string | null
+          salary_amount?: number | null
+          salary_day?: number | null
         }
         Update: {
           birth_date?: string | null
@@ -172,6 +289,8 @@ export type Database = {
           initial_balance?: number | null
           matricula?: number
           phone?: string | null
+          salary_amount?: number | null
+          salary_day?: number | null
         }
         Relationships: []
       }
