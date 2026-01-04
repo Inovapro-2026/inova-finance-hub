@@ -179,7 +179,10 @@ export default function Login() {
           matricula: newMatricula,
           full_name: fullName.trim(),
           email: email.trim(),
-          cpf: phone.trim(), // Usando campo cpf para telefone temporariamente
+          phone: phone.trim(),
+          initial_balance: parseFloat(initialBalance) || 0,
+          credit_limit: parseFloat(creditLimit) || 5000,
+          credit_due_day: parseInt(creditDueDay) || 5,
           salary_amount: isClt ? (parseFloat(salaryAmount) || 0) : 0,
           salary_day: isClt ? (parseInt(salaryDay) || 5) : 5,
           advance_amount: isClt ? (parseFloat(advanceAmount) || 0) : 0,
