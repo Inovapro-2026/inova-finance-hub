@@ -16,11 +16,24 @@ interface RequestBody {
     creditUsed: number;
     creditDueDay: number;
     daysUntilDue: number;
+    salaryAmount: number;
+    salaryDay: number;
+    monthlyPaymentsTotal: number;
+    projectedBalance: number;
+    todayExpenses: number;
+    todayIncome: number;
+    scheduledPayments: Array<{
+      name: string;
+      amount: number;
+      dueDay: number;
+      category: string;
+    }>;
     recentTransactions: Array<{
       amount: number;
       type: string;
       category: string;
       description: string;
+      date: string;
     }>;
   };
 }
@@ -61,7 +74,7 @@ const tools = [
     type: "function",
     function: {
       name: "get_financial_summary",
-      description: "Retorna um resumo financeiro do usuário incluindo saldo, ganhos e gastos do mês atual.",
+      description: "Retorna um resumo financeiro completo do usuário incluindo saldo, ganhos, gastos, crédito, salário e pagamentos agendados.",
       parameters: {
         type: "object",
         properties: {},
@@ -73,10 +86,44 @@ const tools = [
     type: "function",
     function: {
       name: "get_current_balance",
-      description: "Retorna apenas o saldo atual do usuário.",
+      description: "Retorna o saldo atual, limite de crédito disponível e informações de crédito.",
       parameters: {
         type: "object",
         properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_day_transactions",
+      description: "Retorna quanto o usuário gastou ou recebeu hoje ou em um dia específico.",
+      parameters: {
+        type: "object",
+        properties: {
+          day: {
+            type: "number",
+            description: "Dia do mês para consultar (1-31). Se não informado, retorna o dia atual."
+          }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_scheduled_payments",
+      description: "Retorna os pagamentos agendados do mês, incluindo quanto vai pagar em um dia específico.",
+      parameters: {
+        type: "object",
+        properties: {
+          day: {
+            type: "number",
+            description: "Dia do mês para ver pagamentos (1-31). Se não informado, retorna todos do mês."
+          }
+        },
         required: []
       }
     }
@@ -99,11 +146,20 @@ serve(async (req) => {
     console.log('Received message:', message);
     console.log('Context:', context);
 
-    // Detect if user is talking about a transaction
-    const transactionKeywords = /gastei|gasto|comprei|paguei|pagar|recebi|ganhei|entrou|gastando|compra|despesa|renda|salário|freelance|receita|custa|custou|investi/i;
+    // Detect if user is talking about a transaction (recording)
+    const transactionKeywords = /gastei|comprei|paguei|recebi|ganhei|entrou|gastando|investi/i;
     const isTransactionRequest = transactionKeywords.test(message);
+    
+    // Detect if user is asking for information (query)
+    const queryKeywords = /quanto|qual|meu saldo|minha|minhas|vou pagar|tenho que pagar|agendado|limite|crédito|débito|hoje|dia \d+|resumo|extrato/i;
+    const isQueryRequest = queryKeywords.test(message);
 
     const creditAvailable = (context.creditLimit || 0) - (context.creditUsed || 0);
+    
+    // Build scheduled payments info
+    const scheduledPaymentsInfo = (context.scheduledPayments || [])
+      .map(p => `- ${p.name}: R$ ${p.amount.toFixed(2)} (dia ${p.dueDay})`)
+      .join('\n') || 'Nenhum pagamento agendado';
     
     const systemPrompt = `Você é o "TIO DA GRANA" - um assistente financeiro BRUTALMENTE HONESTO, engraçado e sem papas na língua. Você é aquele tio chato que fala a verdade na cara, mas de um jeito que faz rir e refletir.
 
@@ -113,25 +169,36 @@ PERSONALIDADE OBRIGATÓRIA:
 - Faça comparações absurdas ("Com isso comprava 50 pães de queijo!")
 - Comemore economias e investimentos com empolgação exagerada
 - Use expressões brasileiras, gírias e memes
-- Seja CURTO e DIRETO - máximo 2 frases!
+- Seja CURTO e DIRETO - máximo 3 frases!
 
 REGRAS CRÍTICAS:
 - SEMPRE que o usuário mencionar um GASTO (gastei, comprei, paguei, etc) com valor, USE A FUNÇÃO record_transaction com type="expense"
 - SEMPRE que o usuário mencionar uma RECEITA (recebi, ganhei, entrou dinheiro, etc) com valor, USE A FUNÇÃO record_transaction com type="income"
-- NÃO responda com texto simples quando há um valor monetário mencionado - USE A FUNÇÃO!
+- Quando perguntarem SALDO, LIMITE, CRÉDITO use get_current_balance
+- Quando perguntarem resumo financeiro, quanto gastou/recebeu no mês use get_financial_summary
+- Quando perguntarem quanto gastou/recebeu HOJE ou em um DIA específico use get_day_transactions
+- Quando perguntarem sobre PAGAMENTOS AGENDADOS ou quanto vai pagar no dia X use get_scheduled_payments
+- NÃO responda com texto simples quando há um valor monetário para registrar - USE A FUNÇÃO!
 - Se não entender o valor ou a descrição, PERGUNTE de forma engraçada
-- Quando perguntarem sobre LIMITE, CRÉDITO, CARTÃO ou VENCIMENTO, INCLUA as informações de crédito na resposta
 
 CONTEXTO FINANCEIRO ATUAL:
 - Saldo Débito: R$ ${context.balance.toFixed(2)}
-- Receitas: R$ ${context.totalIncome.toFixed(2)}
-- Gastos: R$ ${context.totalExpense.toFixed(2)}
+- Receitas do Mês: R$ ${context.totalIncome.toFixed(2)}
+- Gastos do Mês: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
 - Limite de Crédito Total: R$ ${(context.creditLimit || 0).toFixed(2)}
 - Crédito Usado: R$ ${(context.creditUsed || 0).toFixed(2)}
 - Crédito Disponível: R$ ${creditAvailable.toFixed(2)}
 - Dia de Vencimento da Fatura: ${context.creditDueDay || 5}
 - Dias até o Vencimento: ${context.daysUntilDue || 0} dias
+- Salário: R$ ${(context.salaryAmount || 0).toFixed(2)} (dia ${context.salaryDay || 5})
+- Total Pagamentos do Mês: R$ ${(context.monthlyPaymentsTotal || 0).toFixed(2)}
+- Saldo Previsto fim do Mês: R$ ${(context.projectedBalance || 0).toFixed(2)}
+- Gastos Hoje: R$ ${(context.todayExpenses || 0).toFixed(2)}
+- Receitas Hoje: R$ ${(context.todayIncome || 0).toFixed(2)}
+
+PAGAMENTOS AGENDADOS:
+${scheduledPaymentsInfo}
 
 CATEGORIAS (escolha a mais apropriada):
 - food = alimentação, comida, restaurante, pizza, lanche, almoço, jantar, café
@@ -149,8 +216,8 @@ CATEGORIAS (escolha a mais apropriada):
 
 RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
 
-    // Force tool use when transaction keywords are detected
-    const toolChoice = isTransactionRequest 
+    // Force tool use when transaction keywords are detected, but not when it's a query
+    const toolChoice = (isTransactionRequest && !isQueryRequest)
       ? { type: "function", function: { name: "record_transaction" } }
       : 'auto';
 
@@ -251,36 +318,98 @@ RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
           break;
 
         case 'get_financial_summary':
-          functionResponse = {
-            balance: context.balance,
-            totalIncome: context.totalIncome,
-            totalExpense: context.totalExpense
-          };
-          
           const savingsRate = context.totalIncome > 0 
             ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100)
             : 0;
           
-          if (savingsRate >= 30) {
-            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n🏆 ${savingsRate.toFixed(0)}% de economia! Tá voando, hein? Continua assim! 🚀`;
-          } else if (savingsRate >= 10) {
-            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n😐 ${savingsRate.toFixed(0)}% de economia... Medíocre! Dá pra melhorar, bora cortar gastos! 💪`;
-          } else {
-            responseMessage = `📊 Saldo: R$ ${context.balance.toFixed(2)} | Ganhou R$ ${context.totalIncome.toFixed(2)} | Gastou R$ ${context.totalExpense.toFixed(2)}\n\n🚨 ${savingsRate.toFixed(0)}% de economia?! Tá de brincadeira! Você gasta quase TUDO que ganha! 😱`;
-          }
+          functionResponse = {
+            balance: context.balance,
+            totalIncome: context.totalIncome,
+            totalExpense: context.totalExpense,
+            salaryAmount: context.salaryAmount,
+            monthlyPaymentsTotal: context.monthlyPaymentsTotal,
+            projectedBalance: context.projectedBalance
+          };
+          
+          let summaryEmoji = savingsRate >= 30 ? '🏆' : savingsRate >= 10 ? '😐' : '🚨';
+          responseMessage = `📊 Resumo Financeiro:
+💰 Saldo: R$ ${context.balance.toFixed(2)}
+💵 Salário: R$ ${(context.salaryAmount || 0).toFixed(2)} (dia ${context.salaryDay || 5})
+📈 Receitas: R$ ${context.totalIncome.toFixed(2)}
+📉 Gastos: R$ ${context.totalExpense.toFixed(2)}
+📌 Pagamentos Agendados: R$ ${(context.monthlyPaymentsTotal || 0).toFixed(2)}
+🔮 Saldo Previsto: R$ ${(context.projectedBalance || 0).toFixed(2)}
+
+${summaryEmoji} Taxa de economia: ${savingsRate.toFixed(0)}%`;
           break;
 
         case 'get_current_balance':
-          functionResponse = { balance: context.balance };
+          const creditAvail = (context.creditLimit || 0) - (context.creditUsed || 0);
+          functionResponse = { 
+            balance: context.balance,
+            creditLimit: context.creditLimit,
+            creditUsed: context.creditUsed,
+            creditAvailable: creditAvail
+          };
           
-          if (context.balance > 1000) {
-            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Tá bem! Mas não é pra sair gastando, viu? Guarda isso! 😏`;
-          } else if (context.balance > 100) {
-            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Apertado hein? Segura a onda e para de gastar! 🤔`;
-          } else if (context.balance > 0) {
-            responseMessage = `💰 Saldo: R$ ${context.balance.toFixed(2)}. Quase no vermelho! Para TUDO e só gasta o essencial! 😰`;
+          responseMessage = `💰 Saldo Débito: R$ ${context.balance.toFixed(2)}
+💳 Crédito: R$ ${creditAvail.toFixed(2)} disponível de R$ ${(context.creditLimit || 0).toFixed(2)}
+📅 Fatura vence dia ${context.creditDueDay} (${context.daysUntilDue} dias)`;
+          
+          if (context.balance < 100) {
+            responseMessage += `\n\n🚨 Atenção: saldo baixo! Controla os gastos! 😰`;
+          }
+          break;
+
+        case 'get_day_transactions':
+          const queryDay = args.day || new Date().getDate();
+          const isToday = queryDay === new Date().getDate();
+          
+          functionResponse = {
+            day: queryDay,
+            expenses: context.todayExpenses,
+            income: context.todayIncome
+          };
+          
+          const dayLabel = isToday ? 'Hoje' : `Dia ${queryDay}`;
+          responseMessage = `📅 ${dayLabel}:
+📉 Gastos: R$ ${(context.todayExpenses || 0).toFixed(2)}
+📈 Receitas: R$ ${(context.todayIncome || 0).toFixed(2)}`;
+          
+          if ((context.todayExpenses || 0) > 100) {
+            responseMessage += `\n\n😤 Gastando alto hein? Segura a mão!`;
+          } else if ((context.todayExpenses || 0) === 0) {
+            responseMessage += `\n\n🏆 Nenhum gasto! Tá de parabéns!`;
+          }
+          break;
+
+        case 'get_scheduled_payments':
+          const targetDay = args.day;
+          const payments = context.scheduledPayments || [];
+          
+          if (targetDay) {
+            const dayPayments = payments.filter(p => p.dueDay === targetDay);
+            const totalDay = dayPayments.reduce((sum, p) => sum + p.amount, 0);
+            
+            functionResponse = { day: targetDay, payments: dayPayments, total: totalDay };
+            
+            if (dayPayments.length === 0) {
+              responseMessage = `📅 Dia ${targetDay}: Nenhum pagamento agendado! Folga pro bolso! 🎉`;
+            } else {
+              const paymentsList = dayPayments.map(p => `- ${p.name}: R$ ${p.amount.toFixed(2)}`).join('\n');
+              responseMessage = `📅 Pagamentos dia ${targetDay}:\n${paymentsList}\n\n💸 Total: R$ ${totalDay.toFixed(2)}`;
+            }
           } else {
-            responseMessage = `🚨 Saldo: R$ ${context.balance.toFixed(2)}. NEGATIVO?! Para tudo e repensa sua vida financeira AGORA! 😭`;
+            const totalMonth = context.monthlyPaymentsTotal || 0;
+            functionResponse = { payments, total: totalMonth };
+            
+            if (payments.length === 0) {
+              responseMessage = `📌 Nenhum pagamento agendado este mês! Tá leve! 🎉`;
+            } else {
+              const paymentsList = payments.slice(0, 5).map(p => `- ${p.name}: R$ ${p.amount.toFixed(2)} (dia ${p.dueDay})`).join('\n');
+              const extra = payments.length > 5 ? `\n... e mais ${payments.length - 5} pagamentos` : '';
+              responseMessage = `📌 Pagamentos do mês:\n${paymentsList}${extra}\n\n💸 Total: R$ ${totalMonth.toFixed(2)}`;
+            }
           }
           break;
 
