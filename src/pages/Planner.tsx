@@ -38,6 +38,8 @@ import {
   addPaymentLog,
   checkSalaryCredited,
   addSalaryCredit,
+  checkAdvanceCredited,
+  calculateDaysUntil,
   type ScheduledPayment 
 } from '@/lib/plannerDb';
 import { addTransaction, calculateBalance } from '@/lib/db';
@@ -82,10 +84,17 @@ export default function Planner() {
     projectedBalance: number;
     heaviestPayment: ScheduledPayment | null;
   } | null>(null);
-  const [salaryInfo, setSalaryInfo] = useState<{ salaryAmount: number; salaryDay: number } | null>(null);
+  const [salaryInfo, setSalaryInfo] = useState<{ 
+    salaryAmount: number; 
+    salaryDay: number;
+    advanceAmount: number;
+    advanceDay: number | null;
+  } | null>(null);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [salaryAmountInput, setSalaryAmountInput] = useState('');
   const [salaryDayInput, setSalaryDayInput] = useState('5');
+  const [advanceAmountInput, setAdvanceAmountInput] = useState('');
+  const [advanceDayInput, setAdvanceDayInput] = useState('');
   const [pendingPayment, setPendingPayment] = useState<ScheduledPayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -114,6 +123,8 @@ export default function Planner() {
       if (salaryData) {
         setSalaryAmountInput(salaryData.salaryAmount.toString());
         setSalaryDayInput(salaryData.salaryDay.toString());
+        setAdvanceAmountInput(salaryData.advanceAmount.toString());
+        setAdvanceDayInput(salaryData.advanceDay?.toString() || '');
         
         const summary = await calculateMonthlySummary(user.userId, salaryData.salaryAmount, salaryData.salaryDay);
         setMonthlySummary({
@@ -128,6 +139,11 @@ export default function Planner() {
 
         // Auto-credit salary if it's the salary day and not yet credited
         await checkAndCreditSalary(user.userId, salaryData.salaryAmount, salaryData.salaryDay);
+        
+        // Auto-credit advance if it's the advance day and not yet credited
+        if (salaryData.advanceAmount > 0 && salaryData.advanceDay) {
+          await checkAndCreditAdvance(user.userId, salaryData.advanceAmount, salaryData.advanceDay);
+        }
 
         // Announce today's payments
         if (todayPayments.length > 0) {
@@ -178,6 +194,41 @@ export default function Planner() {
     }
   };
 
+  const checkAndCreditAdvance = async (userId: number, advanceAmount: number, advanceDay: number) => {
+    const today = new Date();
+    if (today.getDate() !== advanceDay || advanceAmount <= 0) return;
+
+    const monthYear = today.toISOString().slice(0, 7);
+    const alreadyCredited = await checkAdvanceCredited(userId, monthYear);
+    
+    if (!alreadyCredited) {
+      // Credit advance
+      await addSalaryCredit({
+        userId,
+        amount: advanceAmount,
+        creditedAt: new Date(),
+        monthYear: `${monthYear}-adv`,
+      });
+
+      // Add as income transaction
+      await addTransaction({
+        amount: advanceAmount,
+        type: 'income',
+        paymentMethod: 'debit',
+        category: 'Adiantamento',
+        description: `Adiantamento ${format(today, 'MMMM yyyy', { locale: ptBR })}`,
+        date: new Date(),
+        userId,
+      });
+
+      await refreshUser();
+      toast.success('Adiantamento creditado!', {
+        description: `${formatCurrency(advanceAmount)} foi adicionado ao seu saldo`,
+      });
+      speakNative(`Hoje é dia ${advanceDay}, seu adiantamento foi creditado no valor de ${formatCurrency(advanceAmount)}`);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -216,15 +267,22 @@ export default function Planner() {
 
     const amount = parseFloat(salaryAmountInput.replace(',', '.'));
     const day = parseInt(salaryDayInput);
+    const advAmount = parseFloat(advanceAmountInput.replace(',', '.')) || 0;
+    const advDay = advanceDayInput ? parseInt(advanceDayInput) : null;
 
     if (isNaN(amount) || amount < 0 || isNaN(day) || day < 1 || day > 31) {
-      toast.error('Valores inválidos');
+      toast.error('Valores de salário inválidos');
       return;
     }
 
-    const success = await updateUserSalaryInfo(user.userId, amount, day);
+    if (advDay !== null && (advDay < 1 || advDay > 31)) {
+      toast.error('Dia de adiantamento inválido');
+      return;
+    }
+
+    const success = await updateUserSalaryInfo(user.userId, amount, day, advAmount, advDay);
     if (success) {
-      toast.success('Informações do salário atualizadas!');
+      toast.success('Informações atualizadas!');
       setIsSalaryModalOpen(false);
       loadData();
     } else {
@@ -324,34 +382,82 @@ export default function Planner() {
           <p className="text-lg font-bold text-green-500">
             {salaryInfo ? formatCurrency(salaryInfo.salaryAmount) : 'R$ 0,00'}
           </p>
-          <p className="text-[10px] text-muted-foreground">
-            Dia {salaryInfo?.salaryDay || 5}
-          </p>
-        </GlassCard>
-
-        <GlassCard className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-              <TrendingDown className="w-4 h-4 text-red-500" />
-            </div>
-            <span className="text-xs text-muted-foreground">Pagamentos</span>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[10px] text-muted-foreground">
+              Dia {salaryInfo?.salaryDay || 5}
+            </p>
+            {salaryInfo && salaryInfo.salaryDay && (
+              <p className="text-[10px] font-medium text-green-400">
+                {calculateDaysUntil(salaryInfo.salaryDay) === 0 
+                  ? '🎉 Hoje!' 
+                  : `${calculateDaysUntil(salaryInfo.salaryDay)} dias`}
+              </p>
+            )}
           </div>
-          <p className="text-lg font-bold text-red-500">
-            {monthlySummary ? formatCurrency(monthlySummary.totalPayments) : 'R$ 0,00'}
-          </p>
-          <p className="text-[10px] text-muted-foreground">Este mês</p>
         </GlassCard>
+
+        {salaryInfo && salaryInfo.advanceAmount > 0 && salaryInfo.advanceDay ? (
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-blue-500" />
+              </div>
+              <span className="text-xs text-muted-foreground">Adiantamento</span>
+            </div>
+            <p className="text-lg font-bold text-blue-500">
+              {formatCurrency(salaryInfo.advanceAmount)}
+            </p>
+            <div className="flex items-center justify-between mt-1">
+              <p className="text-[10px] text-muted-foreground">
+                Dia {salaryInfo.advanceDay}
+              </p>
+              <p className="text-[10px] font-medium text-blue-400">
+                {calculateDaysUntil(salaryInfo.advanceDay) === 0 
+                  ? '🎉 Hoje!' 
+                  : `${calculateDaysUntil(salaryInfo.advanceDay)} dias`}
+              </p>
+            </div>
+          </GlassCard>
+        ) : (
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-red-500" />
+              </div>
+              <span className="text-xs text-muted-foreground">Pagamentos</span>
+            </div>
+            <p className="text-lg font-bold text-red-500">
+              {monthlySummary ? formatCurrency(monthlySummary.totalPayments) : 'R$ 0,00'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">Este mês</p>
+          </GlassCard>
+        )}
+
+        {salaryInfo && salaryInfo.advanceAmount > 0 && salaryInfo.advanceDay && (
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                <TrendingDown className="w-4 h-4 text-red-500" />
+              </div>
+              <span className="text-xs text-muted-foreground">Pagamentos</span>
+            </div>
+            <p className="text-lg font-bold text-red-500">
+              {monthlySummary ? formatCurrency(monthlySummary.totalPayments) : 'R$ 0,00'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">Este mês</p>
+          </GlassCard>
+        )}
 
         <GlassCard className="p-4">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-blue-500" />
+            <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center">
+              <TrendingUp className="w-4 h-4 text-purple-500" />
             </div>
             <span className="text-xs text-muted-foreground">Saldo Previsto</span>
           </div>
           <p className={cn(
             "text-lg font-bold",
-            (monthlySummary?.projectedBalance || 0) >= 0 ? "text-blue-500" : "text-red-500"
+            (monthlySummary?.projectedBalance || 0) >= 0 ? "text-purple-500" : "text-red-500"
           )}>
             {monthlySummary ? formatCurrency(monthlySummary.projectedBalance) : 'R$ 0,00'}
           </p>
@@ -571,35 +677,70 @@ export default function Planner() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
             >
-              <GlassCard className="p-6">
+              <GlassCard className="p-6 max-h-[80vh] overflow-y-auto">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-primary" />
-                  Configurar Salário
+                  Configurar Pagamentos
                 </h3>
                 
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Valor do Salário (R$)</Label>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={salaryAmountInput}
-                      onChange={(e) => setSalaryAmountInput(e.target.value)}
-                      className="h-12"
-                    />
+                  <div className="pb-3 border-b border-border">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">💰 Salário</p>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>Valor do Salário (R$)</Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={salaryAmountInput}
+                          onChange={(e) => setSalaryAmountInput(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Dia do Pagamento</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={salaryDayInput}
+                          onChange={(e) => setSalaryDayInput(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Dia do Recebimento</Label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="31"
-                      value={salaryDayInput}
-                      onChange={(e) => setSalaryDayInput(e.target.value)}
-                      className="h-12"
-                    />
+
+                  <div className="pt-1">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">💵 Adiantamento (opcional)</p>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <Label>Valor do Adiantamento (R$)</Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={advanceAmountInput}
+                          onChange={(e) => setAdvanceAmountInput(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Dia do Adiantamento</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="Ex: 20"
+                          value={advanceDayInput}
+                          onChange={(e) => setAdvanceDayInput(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
