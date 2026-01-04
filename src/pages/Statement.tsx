@@ -36,12 +36,7 @@ export default function Statement() {
   const loadTransactions = async () => {
     if (!user) return;
     const txns = await getTransactions(user.userId);
-    // Sort by date (most recent first)
-    txns.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return dateB.getTime() - dateA.getTime();
-    });
+    // Already sorted by created_at from database
     setTransactions(txns);
   };
 
