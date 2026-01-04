@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles, Fingerprint } from 'lucide-react';
+import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles, Fingerprint, Briefcase, DollarSign, CalendarDays } from 'lucide-react';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +28,9 @@ export default function Login() {
   const [initialBalance, setInitialBalance] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
   const [creditDueDay, setCreditDueDay] = useState('');
+  const [isClt, setIsClt] = useState<boolean | null>(null);
+  const [salaryAmount, setSalaryAmount] = useState('');
+  const [salaryDay, setSalaryDay] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -175,6 +178,8 @@ export default function Login() {
           full_name: fullName.trim(),
           email: email.trim(),
           cpf: phone.trim(), // Usando campo cpf para telefone temporariamente
+          salary_amount: isClt ? (parseFloat(salaryAmount) || 0) : 0,
+          salary_day: isClt ? (parseInt(salaryDay) || 5) : 5,
         });
       
       if (insertError) throw insertError;
@@ -460,6 +465,82 @@ export default function Login() {
                     Dia do mês que sua fatura vence (1-31)
                   </p>
                 </div>
+
+                {/* Pergunta CLT */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-primary" />
+                    Você é CLT?
+                  </label>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant={isClt === true ? "default" : "outline"}
+                      className={`flex-1 ${isClt === true ? 'bg-gradient-primary' : ''}`}
+                      onClick={() => setIsClt(true)}
+                    >
+                      Sim
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isClt === false ? "default" : "outline"}
+                      className={`flex-1 ${isClt === false ? 'bg-gradient-primary' : ''}`}
+                      onClick={() => setIsClt(false)}
+                    >
+                      Não
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Campos condicionais CLT */}
+                {isClt === true && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-4"
+                  >
+                    {/* Valor do Salário */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <DollarSign className="w-4 h-4 text-emerald-500" />
+                        Valor do salário
+                      </label>
+                      <Input
+                        type="number"
+                        value={salaryAmount}
+                        onChange={(e) => setSalaryAmount(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="bg-muted/50 border-border"
+                      />
+                    </div>
+
+                    {/* Dia do Pagamento */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4 text-secondary" />
+                        Dia do pagamento
+                      </label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={salaryDay}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!e.target.value || (val >= 1 && val <= 31)) {
+                            setSalaryDay(e.target.value);
+                          }
+                        }}
+                        placeholder="Ex: 5"
+                        className="bg-muted/50 border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Dia do mês que você recebe (1-31)
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
 
                 <Button
                   onClick={handleRegister}
