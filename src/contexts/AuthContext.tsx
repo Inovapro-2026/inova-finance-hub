@@ -76,9 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: email || '',
           phone: phone || '',
           initialBalance: initialBalance || 0,
-          creditLimit: creditLimit || 5000,
+          hasCreditCard: false,
+          creditLimit: creditLimit || 0,
+          creditAvailable: 0,
           creditUsed: 0,
-          creditDueDay: creditDueDay || 5,
+          creditDueDay: creditDueDay,
         });
         profile = await getProfile(matricula);
       }

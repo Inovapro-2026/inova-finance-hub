@@ -299,11 +299,13 @@ export type Database = {
           blocked: boolean | null
           cpf: string | null
           created_at: string
+          credit_available: number | null
           credit_due_day: number | null
           credit_limit: number | null
           credit_used: number | null
           email: string | null
           full_name: string | null
+          has_credit_card: boolean | null
           id: string
           initial_balance: number | null
           matricula: number
@@ -318,11 +320,13 @@ export type Database = {
           blocked?: boolean | null
           cpf?: string | null
           created_at?: string
+          credit_available?: number | null
           credit_due_day?: number | null
           credit_limit?: number | null
           credit_used?: number | null
           email?: string | null
           full_name?: string | null
+          has_credit_card?: boolean | null
           id?: string
           initial_balance?: number | null
           matricula: number
@@ -337,11 +341,13 @@ export type Database = {
           blocked?: boolean | null
           cpf?: string | null
           created_at?: string
+          credit_available?: number | null
           credit_due_day?: number | null
           credit_limit?: number | null
           credit_used?: number | null
           email?: string | null
           full_name?: string | null
+          has_credit_card?: boolean | null
           id?: string
           initial_balance?: number | null
           matricula?: number

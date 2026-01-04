@@ -7,7 +7,9 @@ export interface Profile {
   email?: string;
   phone?: string;
   initialBalance: number;
+  hasCreditCard: boolean;
   creditLimit: number;
+  creditAvailable: number;
   creditUsed: number;
   creditDueDay?: number;
   salaryAmount?: number;
@@ -57,9 +59,11 @@ export async function getProfile(matricula: number): Promise<Profile | undefined
     email: data.email || undefined,
     phone: data.phone || undefined,
     initialBalance: Number(data.initial_balance) || 0,
-    creditLimit: Number(data.credit_limit) || 5000,
+    hasCreditCard: data.has_credit_card || false,
+    creditLimit: Number(data.credit_limit) || 0,
+    creditAvailable: Number(data.credit_available) || 0,
     creditUsed: Number(data.credit_used) || 0,
-    creditDueDay: data.credit_due_day || 5,
+    creditDueDay: data.credit_due_day || undefined,
     salaryAmount: Number(data.salary_amount) || 0,
     salaryDay: data.salary_day || 5,
     createdAt: new Date(data.created_at),
@@ -75,9 +79,11 @@ export async function createProfile(profile: Omit<Profile, 'id' | 'createdAt'>):
       email: profile.email || null,
       phone: profile.phone || null,
       initial_balance: profile.initialBalance,
+      has_credit_card: profile.hasCreditCard,
       credit_limit: profile.creditLimit,
+      credit_available: profile.creditAvailable,
       credit_used: profile.creditUsed,
-      credit_due_day: profile.creditDueDay || 5,
+      credit_due_day: profile.creditDueDay || null,
     })
     .select('id')
     .single();
@@ -97,7 +103,9 @@ export async function updateProfile(matricula: number, updates: Partial<Profile>
   if (updates.email !== undefined) updateData.email = updates.email;
   if (updates.phone !== undefined) updateData.phone = updates.phone;
   if (updates.initialBalance !== undefined) updateData.initial_balance = updates.initialBalance;
+  if (updates.hasCreditCard !== undefined) updateData.has_credit_card = updates.hasCreditCard;
   if (updates.creditLimit !== undefined) updateData.credit_limit = updates.creditLimit;
+  if (updates.creditAvailable !== undefined) updateData.credit_available = updates.creditAvailable;
   if (updates.creditUsed !== undefined) updateData.credit_used = updates.creditUsed;
   if (updates.creditDueDay !== undefined) updateData.credit_due_day = updates.creditDueDay;
 

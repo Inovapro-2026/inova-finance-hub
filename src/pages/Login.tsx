@@ -28,6 +28,8 @@ export default function Login() {
   const [initialBalance, setInitialBalance] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
   const [creditDueDay, setCreditDueDay] = useState('');
+  const [creditAvailable, setCreditAvailable] = useState('');
+  const [hasCreditCard, setHasCreditCard] = useState<boolean | null>(null);
   const [isClt, setIsClt] = useState<boolean | null>(null);
   const [salaryAmount, setSalaryAmount] = useState('');
   const [salaryDay, setSalaryDay] = useState('');
@@ -181,8 +183,10 @@ export default function Login() {
           email: email.trim(),
           phone: phone.trim(),
           initial_balance: parseFloat(initialBalance) || 0,
-          credit_limit: parseFloat(creditLimit) || 5000,
-          credit_due_day: parseInt(creditDueDay) || 5,
+          has_credit_card: hasCreditCard === true,
+          credit_limit: hasCreditCard ? (parseFloat(creditLimit) || 0) : 0,
+          credit_available: hasCreditCard ? (parseFloat(creditAvailable) || 0) : 0,
+          credit_due_day: hasCreditCard ? (parseInt(creditDueDay) || 5) : null,
           salary_amount: isClt ? (parseFloat(salaryAmount) || 0) : 0,
           salary_day: isClt ? (parseInt(salaryDay) || 5) : 5,
           advance_amount: isClt ? (parseFloat(advanceAmount) || 0) : 0,
@@ -433,45 +437,99 @@ export default function Login() {
                   />
                 </div>
 
-                {/* Limite Crédito */}
-                <div className="space-y-2">
+                {/* Pergunta Cartão de Crédito */}
+                <div className="space-y-3 pt-2 border-t border-border">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <CreditCard className="w-4 h-4 text-secondary" />
-                    Limite de crédito
+                    Você tem cartão de crédito?
                   </label>
-                  <Input
-                    type="number"
-                    value={creditLimit}
-                    onChange={(e) => setCreditLimit(e.target.value)}
-                    placeholder="R$ 5.000,00"
-                    className="bg-muted/50 border-border"
-                  />
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant={hasCreditCard === true ? "default" : "outline"}
+                      className={`flex-1 ${hasCreditCard === true ? 'bg-gradient-primary' : ''}`}
+                      onClick={() => setHasCreditCard(true)}
+                    >
+                      Sim
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={hasCreditCard === false ? "default" : "outline"}
+                      className={`flex-1 ${hasCreditCard === false ? 'bg-gradient-primary' : ''}`}
+                      onClick={() => setHasCreditCard(false)}
+                    >
+                      Não
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Dia Vencimento Crédito */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-warning" />
-                    Dia de vencimento do crédito
-                  </label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={creditDueDay}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (!e.target.value || (val >= 1 && val <= 31)) {
-                        setCreditDueDay(e.target.value);
-                      }
-                    }}
-                    placeholder="Ex: 5"
-                    className="bg-muted/50 border-border"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Dia do mês que sua fatura vence (1-31)
-                  </p>
-                </div>
+                {/* Campos condicionais Cartão de Crédito */}
+                {hasCreditCard === true && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-4"
+                  >
+                    {/* Limite Crédito */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <CreditCard className="w-4 h-4 text-secondary" />
+                        Limite total do cartão
+                      </label>
+                      <Input
+                        type="number"
+                        value={creditLimit}
+                        onChange={(e) => setCreditLimit(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="bg-muted/50 border-border"
+                      />
+                    </div>
+
+                    {/* Valor Disponível */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Wallet className="w-4 h-4 text-emerald-500" />
+                        Valor disponível atual
+                      </label>
+                      <Input
+                        type="number"
+                        value={creditAvailable}
+                        onChange={(e) => setCreditAvailable(e.target.value)}
+                        placeholder="R$ 0,00"
+                        className="bg-muted/50 border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Quanto você tem disponível no cartão agora
+                      </p>
+                    </div>
+
+                    {/* Dia Vencimento Crédito */}
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-warning" />
+                        Dia de vencimento da fatura
+                      </label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={creditDueDay}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (!e.target.value || (val >= 1 && val <= 31)) {
+                            setCreditDueDay(e.target.value);
+                          }
+                        }}
+                        placeholder="Ex: 15"
+                        className="bg-muted/50 border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        No vencimento, o limite será restaurado para o valor total
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
 
                 {/* Pergunta CLT */}
                 <div className="space-y-3 pt-2 border-t border-border">
