@@ -5,18 +5,67 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance } from '@/lib/db';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { toast } from 'sonner';
+import {
+  isBiometricSupported,
+  isPlatformAuthenticatorAvailable,
+  isBiometricEnabled,
+  registerBiometric,
+  disableBiometric
+} from '@/services/biometricService';
 
 export default function Card() {
   const { user, refreshUser } = useAuth();
   const [isFlipped, setIsFlipped] = useState(false);
   const [showCVV, setShowCVV] = useState(false);
   const [creditUsed, setCreditUsed] = useState(0);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
       loadData();
     }
+    checkBiometricStatus();
   }, [user]);
+
+  const checkBiometricStatus = async () => {
+    const supported = isBiometricSupported();
+    const available = await isPlatformAuthenticatorAvailable();
+    const enabled = isBiometricEnabled();
+    
+    setBiometricAvailable(supported && available);
+    setBiometricEnabled(enabled);
+  };
+
+  const handleBiometricToggle = async (checked: boolean) => {
+    if (!user) return;
+    
+    setBiometricLoading(true);
+    
+    try {
+      if (checked) {
+        const success = await registerBiometric(user.userId, user.fullName);
+        if (success) {
+          setBiometricEnabled(true);
+          toast.success('Biometria ativada com sucesso!');
+        } else {
+          toast.error('Não foi possível ativar a biometria');
+        }
+      } else {
+        disableBiometric();
+        setBiometricEnabled(false);
+        toast.success('Biometria desativada');
+      }
+    } catch (error) {
+      console.error('Error toggling biometric:', error);
+      toast.error('Erro ao configurar biometria');
+    } finally {
+      setBiometricLoading(false);
+    }
+  };
 
   const loadData = async () => {
     if (!user) return;
@@ -312,22 +361,46 @@ export default function Card() {
         </GlassCard>
 
         {/* Biometria */}
-        <GlassCard className="p-4">
-          <div className="flex items-center gap-4">
-            <Fingerprint className="w-8 h-8 text-primary" />
-            <div>
-              <p className="font-medium text-sm">Biometria</p>
-              <p className="text-muted-foreground text-xs">
-                Ative para maior segurança
-              </p>
+        {biometricAvailable && (
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                biometricEnabled ? 'bg-primary/20' : 'bg-muted'
+              }`}>
+                <Fingerprint className={`w-5 h-5 ${biometricEnabled ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm">Desbloqueio biométrico</p>
+                <p className="text-muted-foreground text-xs">
+                  {biometricEnabled 
+                    ? 'Digital ou Face ID ativo' 
+                    : 'Ative para login rápido'}
+                </p>
+              </div>
+              <Switch
+                checked={biometricEnabled}
+                onCheckedChange={handleBiometricToggle}
+                disabled={biometricLoading}
+              />
             </div>
-            <div className="ml-auto">
-              <div className="w-10 h-6 bg-muted rounded-full flex items-center px-1">
-                <div className="w-4 h-4 rounded-full bg-muted-foreground" />
+          </GlassCard>
+        )}
+
+        {!biometricAvailable && (
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                <Fingerprint className="w-5 h-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-muted-foreground">Biometria</p>
+                <p className="text-muted-foreground text-xs">
+                  Não disponível neste dispositivo
+                </p>
               </div>
             </div>
-          </div>
-        </GlassCard>
+          </GlassCard>
+        )}
       </div>
     </motion.div>
   );

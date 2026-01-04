@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles } from 'lucide-react';
+import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles, Fingerprint } from 'lucide-react';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  isBiometricSupported, 
+  isPlatformAuthenticatorAvailable, 
+  isBiometricEnabled,
+  authenticateWithBiometric,
+  getBiometricMatricula
+} from '@/services/biometricService';
 
 type Step = 'matricula' | 'register' | 'success';
 
@@ -23,9 +30,63 @@ export default function Login() {
   const [creditDueDay, setCreditDueDay] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Check biometric availability on mount
+  useEffect(() => {
+    const checkBiometric = async () => {
+      const supported = isBiometricSupported();
+      const available = await isPlatformAuthenticatorAvailable();
+      const enabled = isBiometricEnabled();
+      
+      setBiometricAvailable(supported && available);
+      setBiometricEnabled(enabled);
+    };
+    checkBiometric();
+  }, []);
+
+  // Handle biometric login
+  const handleBiometricLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const storedMatricula = await authenticateWithBiometric();
+      
+      if (storedMatricula) {
+        // Verify user exists in Supabase
+        const { data: existingUser, error: fetchError } = await supabase
+          .from('users_matricula')
+          .select('*')
+          .eq('matricula', storedMatricula)
+          .maybeSingle();
+        
+        if (fetchError) throw fetchError;
+        
+        if (existingUser) {
+          const success = await login(storedMatricula, existingUser.full_name || '');
+          if (success) {
+            navigate('/');
+          } else {
+            setError('Erro ao fazer login');
+          }
+        } else {
+          setError('Usuário não encontrado');
+        }
+      } else {
+        setError('Autenticação biométrica cancelada');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Erro na autenticação biométrica');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Gerar matrícula única de 6 dígitos
   const generateMatricula = async (): Promise<number> => {
@@ -246,6 +307,23 @@ export default function Login() {
               {isLoading && (
                 <div className="flex justify-center mt-4">
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+
+              {/* Biometric Login Button */}
+              {biometricAvailable && biometricEnabled && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleBiometricLogin}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-primary hover:opacity-90 transition-opacity text-white font-medium glow-primary"
+                  >
+                    <Fingerprint className="w-5 h-5" />
+                    Entrar com biometria
+                  </button>
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    Use sua digital ou Face ID
+                  </p>
                 </div>
               )}
 
