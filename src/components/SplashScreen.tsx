@@ -12,18 +12,18 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
 
   useEffect(() => {
     // Sequence animations
-    const textTimer = setTimeout(() => setShowText(true), 600);
-    const subtextTimer = setTimeout(() => setShowSubtext(true), 1200);
+    const textTimer = setTimeout(() => setShowText(true), 800);
+    const subtextTimer = setTimeout(() => setShowSubtext(true), 1600);
     
     // Play welcome audio
     const audioTimer = setTimeout(() => {
       playWelcomeAudio();
-    }, 800);
+    }, 1200);
 
-    // Complete splash after animations
+    // Complete splash after 6 seconds
     const completeTimer = setTimeout(() => {
       onComplete();
-    }, 4000);
+    }, 6000);
 
     return () => {
       clearTimeout(textTimer);
@@ -38,36 +38,47 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       
-      const utterance = new SpeechSynthesisUtterance('Bem-vindo ao Inova Bank');
+      const welcomeText = 'Bem-vindo ao Inova Bank! Seu banco digital inteligente.';
+      const utterance = new SpeechSynthesisUtterance(welcomeText);
       utterance.lang = 'pt-BR';
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
+      utterance.rate = 0.85;
+      utterance.pitch = 1.05;
       utterance.volume = 1;
 
-      // Try to find a Brazilian Portuguese voice
-      const voices = window.speechSynthesis.getVoices();
-      const ptBrVoice = voices.find(
-        voice => voice.lang === 'pt-BR' || voice.lang.startsWith('pt')
-      );
-      
-      if (ptBrVoice) {
-        utterance.voice = ptBrVoice;
-      }
+      const selectVoice = (voices: SpeechSynthesisVoice[]) => {
+        // Prioritize Microsoft/Google Brazilian voices
+        const preferredVoices = [
+          'Microsoft Daniel',
+          'Google português do Brasil',
+          'Daniel',
+          'Luciana',
+        ];
+        
+        for (const preferred of preferredVoices) {
+          const voice = voices.find(v => 
+            v.name.includes(preferred) && (v.lang === 'pt-BR' || v.lang.startsWith('pt'))
+          );
+          if (voice) return voice;
+        }
+        
+        // Fallback to any pt-BR voice
+        return voices.find(v => v.lang === 'pt-BR' || v.lang.startsWith('pt'));
+      };
 
-      // If voices aren't loaded yet, wait for them
-      if (voices.length === 0) {
+      const voices = window.speechSynthesis.getVoices();
+      
+      if (voices.length > 0) {
+        const voice = selectVoice(voices);
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        // Wait for voices to load
         window.speechSynthesis.onvoiceschanged = () => {
           const loadedVoices = window.speechSynthesis.getVoices();
-          const voice = loadedVoices.find(
-            v => v.lang === 'pt-BR' || v.lang.startsWith('pt')
-          );
-          if (voice) {
-            utterance.voice = voice;
-          }
+          const voice = selectVoice(loadedVoices);
+          if (voice) utterance.voice = voice;
           window.speechSynthesis.speak(utterance);
         };
-      } else {
-        window.speechSynthesis.speak(utterance);
       }
     }
   };
