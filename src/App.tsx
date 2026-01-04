@@ -13,6 +13,7 @@ import Card from "./pages/Card";
 import Transactions from "./pages/Transactions";
 import Goals from "./pages/Goals";
 import AI from "./pages/AI";
+import Planner from "./pages/Planner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/ai" element={<AI />} />
+        <Route path="/planner" element={<Planner />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showNav && <BottomNav />}

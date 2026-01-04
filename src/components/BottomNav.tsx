@@ -3,15 +3,15 @@ import { motion } from 'framer-motion';
 import { 
   Home, 
   CreditCard, 
-  ArrowLeftRight, 
   Mic,
-  User
+  User,
+  CalendarCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
-  { path: '/transactions', icon: ArrowLeftRight, label: 'Transações' },
+  { path: '/planner', icon: CalendarCheck, label: 'Planner' },
   { path: '/ai', icon: Mic, label: 'AI Voice', isCenter: true },
   { path: '/card', icon: CreditCard, label: 'Cartão' },
   { path: '/goals', icon: User, label: 'Perfil' },

@@ -10,6 +10,8 @@ export interface Profile {
   creditLimit: number;
   creditUsed: number;
   creditDueDay?: number;
+  salaryAmount?: number;
+  salaryDay?: number;
   createdAt: Date;
 }
 
@@ -58,6 +60,8 @@ export async function getProfile(matricula: number): Promise<Profile | undefined
     creditLimit: Number(data.credit_limit) || 5000,
     creditUsed: Number(data.credit_used) || 0,
     creditDueDay: data.credit_due_day || 5,
+    salaryAmount: Number(data.salary_amount) || 0,
+    salaryDay: data.salary_day || 5,
     createdAt: new Date(data.created_at),
   };
 }
