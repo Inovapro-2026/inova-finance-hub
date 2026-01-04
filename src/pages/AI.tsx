@@ -12,6 +12,10 @@ interface FinancialContext {
   balance: number;
   totalIncome: number;
   totalExpense: number;
+  creditLimit: number;
+  creditUsed: number;
+  creditDueDay: number;
+  daysUntilDue: number;
   recentTransactions: Array<{
     amount: number;
     type: string;
@@ -165,9 +169,18 @@ export default function AI() {
   }, []);
 
   const getFinancialContext = async (): Promise<FinancialContext> => {
-    if (!user) return { balance: 0, totalIncome: 0, totalExpense: 0, recentTransactions: [] };
+    if (!user) return { 
+      balance: 0, 
+      totalIncome: 0, 
+      totalExpense: 0, 
+      creditLimit: 0,
+      creditUsed: 0,
+      creditDueDay: 5,
+      daysUntilDue: 0,
+      recentTransactions: [] 
+    };
 
-    const { balance, totalIncome, totalExpense } = await calculateBalance(user.userId, user.initialBalance);
+    const { balance, totalIncome, totalExpense, creditUsed } = await calculateBalance(user.userId, user.initialBalance);
     const transactions = await getTransactions(user.userId);
     const recentTransactions = transactions.slice(0, 10).map((t) => ({
       amount: t.amount,
@@ -176,7 +189,29 @@ export default function AI() {
       description: t.description,
     }));
 
-    return { balance, totalIncome, totalExpense, recentTransactions };
+    // Calculate days until credit due date
+    const today = new Date();
+    const dueDay = user.creditDueDay || 5;
+    let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+    
+    if (today.getDate() > dueDay) {
+      // Due date already passed this month, use next month
+      dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+    }
+    
+    const diffTime = dueDate.getTime() - today.getTime();
+    const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return { 
+      balance, 
+      totalIncome, 
+      totalExpense, 
+      creditLimit: user.creditLimit || 5000,
+      creditUsed: creditUsed || 0,
+      creditDueDay: dueDay,
+      daysUntilDue,
+      recentTransactions 
+    };
   };
 
   const processMessage = async (message: string) => {
