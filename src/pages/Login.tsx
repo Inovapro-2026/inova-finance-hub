@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar } from 'lucide-react';
+import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles } from 'lucide-react';
 import { NumericKeypad } from '@/components/NumericKeypad';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getProfile } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
 
-type Step = 'matricula' | 'register';
+type Step = 'matricula' | 'register' | 'success';
 
 export default function Login() {
   const [step, setStep] = useState<Step>('matricula');
   const [matricula, setMatricula] = useState('');
+  const [generatedMatricula, setGeneratedMatricula] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,27 +27,62 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  // Gerar matrícula única de 6 dígitos
+  const generateMatricula = async (): Promise<number> => {
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      const newMatricula = Math.floor(100000 + Math.random() * 900000);
+      
+      // Verificar se já existe no Supabase
+      const { data } = await supabase
+        .from('users_matricula')
+        .select('matricula')
+        .eq('matricula', newMatricula)
+        .maybeSingle();
+      
+      if (!data) {
+        return newMatricula;
+      }
+      attempts++;
+    }
+    
+    throw new Error('Não foi possível gerar matrícula única');
+  };
+
   const handleMatriculaSubmit = async () => {
+    if (matricula.length !== 6) {
+      setError('Digite os 6 dígitos da matrícula');
+      return;
+    }
+    
     setIsLoading(true);
     setError('');
     
     try {
-      // Check if user exists
-      const existingProfile = await getProfile(matricula);
+      // Verificar se usuário existe no Supabase
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('users_matricula')
+        .select('*')
+        .eq('matricula', parseInt(matricula))
+        .maybeSingle();
       
-      if (existingProfile) {
-        // Login existing user
-        const success = await login(matricula);
+      if (fetchError) throw fetchError;
+      
+      if (existingUser) {
+        // Login do usuário existente
+        const success = await login(matricula, existingUser.full_name || '');
         if (success) {
           navigate('/');
         } else {
           setError('Erro ao fazer login');
         }
       } else {
-        // New user, go to registration
-        setStep('register');
+        setError('Matrícula não encontrada. Crie uma conta.');
       }
     } catch (err) {
+      console.error(err);
       setError('Erro ao verificar matrícula');
     } finally {
       setIsLoading(false);
@@ -58,13 +94,33 @@ export default function Login() {
       setError('Digite seu nome completo');
       return;
     }
+    if (!email.trim()) {
+      setError('Digite seu email');
+      return;
+    }
 
     setIsLoading(true);
     setError('');
 
     try {
+      // Gerar matrícula única
+      const newMatricula = await generateMatricula();
+      
+      // Criar usuário no Supabase
+      const { error: insertError } = await supabase
+        .from('users_matricula')
+        .insert({
+          matricula: newMatricula,
+          full_name: fullName.trim(),
+          email: email.trim(),
+          cpf: phone.trim(), // Usando campo cpf para telefone temporariamente
+        });
+      
+      if (insertError) throw insertError;
+      
+      // Login local com os dados extras
       const success = await login(
-        matricula, 
+        newMatricula.toString(), 
         fullName.trim(),
         email.trim(),
         phone.trim(),
@@ -74,15 +130,22 @@ export default function Login() {
       );
       
       if (success) {
-        navigate('/');
+        setGeneratedMatricula(newMatricula.toString());
+        setStep('success');
       } else {
         setError('Erro ao criar conta');
       }
     } catch (err) {
-      setError('Erro ao registrar');
+      console.error(err);
+      setError('Erro ao registrar. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleGoToLogin = () => {
+    setMatricula(generatedMatricula);
+    setStep('matricula');
   };
 
   const formatPhone = (value: string) => {
@@ -121,7 +184,7 @@ export default function Login() {
       </motion.div>
 
       <AnimatePresence mode="wait">
-        {step === 'matricula' ? (
+        {step === 'matricula' && (
           <motion.div
             key="matricula"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -138,7 +201,7 @@ export default function Login() {
               </p>
 
               {/* PIN Display */}
-              <div className="flex justify-center gap-2 mb-8">
+              <div className="flex justify-center gap-2 mb-6">
                 {[...Array(6)].map((_, i) => (
                   <motion.div
                     key={i}
@@ -150,7 +213,7 @@ export default function Login() {
                     animate={matricula[i] ? { scale: [1, 1.1, 1] } : {}}
                     transition={{ duration: 0.2 }}
                   >
-                    {matricula[i] ? '•' : ''}
+                    {matricula[i] || ''}
                   </motion.div>
                 ))}
               </div>
@@ -177,9 +240,25 @@ export default function Login() {
                   <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
+
+              {/* Botão de Cadastro */}
+              <div className="mt-6 pt-4 border-t border-border">
+                <button
+                  onClick={() => {
+                    setStep('register');
+                    setError('');
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors text-secondary font-medium"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  Criar conta
+                </button>
+              </div>
             </GlassCard>
           </motion.div>
-        ) : (
+        )}
+
+        {step === 'register' && (
           <motion.div
             key="register"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -200,7 +279,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <User className="w-4 h-4 text-primary" />
-                    Nome completo
+                    Nome completo *
                   </label>
                   <Input
                     value={fullName}
@@ -214,7 +293,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Mail className="w-4 h-4 text-primary" />
-                    Email
+                    Email *
                   </label>
                   <Input
                     type="email"
@@ -300,12 +379,11 @@ export default function Login() {
                 <button
                   onClick={() => {
                     setStep('matricula');
-                    setMatricula('');
                     setError('');
                   }}
                   className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  Voltar
+                  Já tenho conta
                 </button>
               </div>
 
@@ -318,6 +396,84 @@ export default function Login() {
                   {error}
                 </motion.p>
               )}
+            </GlassCard>
+          </motion.div>
+        )}
+
+        {step === 'success' && (
+          <motion.div
+            key="success"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative z-10 w-full max-w-sm"
+          >
+            <GlassCard className="p-8 text-center">
+              {/* Success Animation */}
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', delay: 0.2 }}
+                className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center"
+              >
+                <CheckCircle className="w-10 h-10 text-white" />
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+                  <Sparkles className="w-6 h-6 text-yellow-500" />
+                  Parabéns!
+                  <Sparkles className="w-6 h-6 text-yellow-500" />
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Sua conta foi criada com sucesso!<br />
+                  Você está pronto para economizar.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mb-6"
+              >
+                <p className="text-sm text-muted-foreground mb-2">
+                  Sua matrícula é:
+                </p>
+                <div className="flex justify-center gap-2">
+                  {generatedMatricula.split('').map((digit, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.8 + i * 0.1, type: 'spring' }}
+                      className="w-12 h-14 rounded-xl bg-gradient-primary flex items-center justify-center text-2xl font-bold text-white glow-primary"
+                    >
+                      {digit}
+                    </motion.div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Guarde esse número! Você usará ele para fazer login.
+                </p>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.4 }}
+              >
+                <Button
+                  onClick={handleGoToLogin}
+                  className="w-full bg-gradient-primary hover:opacity-90 glow-primary"
+                >
+                  Fazer login
+                </Button>
+              </motion.div>
             </GlassCard>
           </motion.div>
         )}
