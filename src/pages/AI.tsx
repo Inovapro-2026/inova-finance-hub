@@ -52,7 +52,7 @@ export default function AI() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [usePremiumTTS, setUsePremiumTTS] = useState(true); // Use HF TTS by default
+  const [usePremiumTTS, setUsePremiumTTS] = useState(false); // Use native browser TTS
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [input, setInput] = useState('');
