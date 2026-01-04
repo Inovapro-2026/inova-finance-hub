@@ -11,7 +11,8 @@ interface AuthContextType {
     phone?: string,
     initialBalance?: number,
     creditLimit?: number,
-    creditDueDate?: Date
+    creditDueDate?: Date,
+    creditDueDay?: number
   ) => Promise<boolean>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -62,7 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     phone?: string,
     initialBalance?: number,
     creditLimit?: number,
-    creditDueDate?: Date
+    creditDueDate?: Date,
+    creditDueDay?: number
   ): Promise<boolean> => {
     try {
       setIsLoading(true);
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           creditLimit: creditLimit || 5000,
           creditUsed: 0,
           creditDueDate: creditDueDate,
+          creditDueDay: creditDueDay || 5,
         });
         profile = await getProfile(userId);
       }

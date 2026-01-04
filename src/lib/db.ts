@@ -9,7 +9,8 @@ export interface Profile {
   initialBalance: number; // Saldo débito
   creditLimit: number; // Limite de crédito
   creditUsed: number; // Crédito usado
-  creditDueDate?: Date; // Data limite do crédito
+  creditDueDate?: Date; // Data limite do crédito atual
+  creditDueDay?: number; // Dia do mês de vencimento (1-31)
   biometricId?: string;
   createdAt: Date;
 }

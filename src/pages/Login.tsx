@@ -20,7 +20,7 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [initialBalance, setInitialBalance] = useState('');
   const [creditLimit, setCreditLimit] = useState('');
-  const [creditDueDate, setCreditDueDate] = useState('');
+  const [creditDueDay, setCreditDueDay] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -118,6 +118,14 @@ export default function Login() {
       
       if (insertError) throw insertError;
       
+      // Calcular próxima data de vencimento baseado no dia
+      const dueDay = parseInt(creditDueDay) || 5;
+      const today = new Date();
+      let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+      if (dueDate <= today) {
+        dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+      }
+      
       // Login local com os dados extras
       const success = await login(
         newMatricula.toString(), 
@@ -126,7 +134,8 @@ export default function Login() {
         phone.trim(),
         parseFloat(initialBalance) || 0,
         parseFloat(creditLimit) || 5000,
-        creditDueDate ? new Date(creditDueDate) : undefined
+        dueDate,
+        dueDay
       );
       
       if (success) {
@@ -350,18 +359,29 @@ export default function Login() {
                   />
                 </div>
 
-                {/* Data Limite Crédito */}
+                {/* Dia Vencimento Crédito */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-warning" />
-                    Data limite do crédito
+                    Dia de vencimento do crédito
                   </label>
                   <Input
-                    type="date"
-                    value={creditDueDate}
-                    onChange={(e) => setCreditDueDate(e.target.value)}
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={creditDueDay}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (!e.target.value || (val >= 1 && val <= 31)) {
+                        setCreditDueDay(e.target.value);
+                      }
+                    }}
+                    placeholder="Ex: 5"
                     className="bg-muted/50 border-border"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Dia do mês que sua fatura vence (1-31)
+                  </p>
                 </div>
 
                 <Button
