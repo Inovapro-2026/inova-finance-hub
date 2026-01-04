@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -7,16 +8,21 @@ import {
   Sparkles,
   ArrowUpRight,
   ArrowDownRight,
-  CreditCard
+  CreditCard,
+  Receipt,
+  ChevronRight
 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance, getTransactions, type Transaction } from '@/lib/db';
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const CHART_COLORS = ['#7A5CFA', '#4A90FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const [balance, setBalance] = useState(0);
   const [debitBalance, setDebitBalance] = useState(0);
@@ -94,6 +100,17 @@ export default function Dashboard() {
       currency: 'BRL',
     }).format(value);
   };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return format(date, 'HH:mm', { locale: ptBR });
+  };
+
+  // Get last 5 expenses for the card
+  const lastExpenses = transactions
+    .filter(t => t.type === 'expense')
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   const getAIInsight = () => {
     if (totalExpense > totalIncome) {
@@ -289,6 +306,57 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                Nenhum gasto registrado ainda
+              </p>
+            )}
+          </GlassCard>
+        </motion.div>
+
+        {/* Last Expenses Card */}
+        <motion.div variants={itemVariants} className="bento-item-large">
+          <GlassCard className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-primary" />
+                <h3 className="font-medium">Últimos Gastos</h3>
+              </div>
+              <button 
+                onClick={() => navigate('/statement')}
+                className="flex items-center gap-1 text-xs text-primary hover:underline"
+              >
+                Extrato completo
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+            
+            {lastExpenses.length > 0 ? (
+              <div className="space-y-3">
+                {lastExpenses.map((expense) => (
+                  <div 
+                    key={expense.id} 
+                    className="flex items-center justify-between py-2 border-b border-border/30 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-destructive/20 flex items-center justify-center">
+                        <ArrowDownRight className="w-4 h-4 text-destructive" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {expense.description || expense.category}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {expense.category} • {formatTime(expense.date.toString())}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-destructive">
+                      -{formatCurrency(expense.amount)}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-muted-foreground text-sm text-center py-8">
