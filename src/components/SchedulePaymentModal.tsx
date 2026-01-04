@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, DollarSign, Tag, Repeat, CalendarCheck } from 'lucide-react';
@@ -22,6 +22,11 @@ interface SchedulePaymentModalProps {
     specificMonth?: Date;
     category: string;
   }) => void;
+  preFill?: {
+    amount?: number;
+    dueDay?: number;
+    name?: string;
+  } | null;
 }
 
 const PAYMENT_CATEGORIES = [
@@ -37,12 +42,33 @@ const PAYMENT_CATEGORIES = [
   { id: 'outros', label: 'Outros', icon: '📋' },
 ];
 
-export function SchedulePaymentModal({ isOpen, onClose, onSchedule }: SchedulePaymentModalProps) {
+export function SchedulePaymentModal({ isOpen, onClose, onSchedule, preFill }: SchedulePaymentModalProps) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [isRecurring, setIsRecurring] = useState(true);
   const [category, setCategory] = useState('outros');
+
+  // Pre-fill values when modal opens with data
+  useEffect(() => {
+    if (isOpen && preFill) {
+      if (preFill.name) setName(preFill.name);
+      if (preFill.amount) setAmount(preFill.amount.toString());
+      if (preFill.dueDay) {
+        const now = new Date();
+        const preFilledDate = new Date(now.getFullYear(), now.getMonth(), preFill.dueDay);
+        setSelectedDate(preFilledDate);
+      }
+    }
+    // Reset when modal closes without preFill
+    if (!isOpen) {
+      setName('');
+      setAmount('');
+      setSelectedDate(undefined);
+      setIsRecurring(true);
+      setCategory('outros');
+    }
+  }, [isOpen, preFill]);
 
   const handleSubmit = () => {
     if (!name.trim() || !amount || !selectedDate) return;

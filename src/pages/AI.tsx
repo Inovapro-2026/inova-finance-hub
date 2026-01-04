@@ -79,6 +79,11 @@ export default function AI() {
   const [editingAmount, setEditingAmount] = useState(false);
   const [editedAmount, setEditedAmount] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [schedulePreFill, setSchedulePreFill] = useState<{
+    amount?: number;
+    dueDay?: number;
+    name?: string;
+  } | null>(null);
   const recognitionRef = useRef<any>(null);
 
   // Initialize native TTS with voice selection
@@ -197,18 +202,85 @@ export default function AI() {
     };
   };
 
-  // Check for schedule payment command
-  const isScheduleCommand = (message: string): boolean => {
+  // Check for schedule payment command and extract data
+  const parseScheduleCommand = (message: string): { isSchedule: boolean; amount?: number; dueDay?: number; name?: string } => {
     const normalizedMessage = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    
     const schedulePatterns = [
-      'inova me lembre',
+      'agendar',
+      'agenda',
+      'pagar dia',
+      'pagamento dia',
+      'pagar no dia',
+      'pagamento no dia',
+      'lembrete',
+      'me lembre',
       'inova lembre',
-      'me lembre de pagar',
-      'agendar pagamento',
-      'lembrete de pagamento',
-      'agendar lembrete',
+      'inova me lembre',
+      'todo dia',
+      'todo mes',
+      'reais dia',
+      'reais no dia',
     ];
-    return schedulePatterns.some(pattern => normalizedMessage.includes(pattern));
+    
+    const isSchedule = schedulePatterns.some(pattern => normalizedMessage.includes(pattern));
+    if (!isSchedule) return { isSchedule: false };
+    
+    // Extract amount - look for patterns like "600 reais", "R$ 500", "de 300"
+    const amountPatterns = [
+      /(\d+(?:[.,]\d{2})?)\s*reais/i,
+      /r\$\s*(\d+(?:[.,]\d{2})?)/i,
+      /de\s*(\d+(?:[.,]\d{2})?)/i,
+      /(\d+(?:[.,]\d{2})?)\s*(?:no dia|dia)/i,
+    ];
+    
+    let amount: number | undefined;
+    for (const pattern of amountPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        amount = parseFloat(match[1].replace(',', '.'));
+        break;
+      }
+    }
+    
+    // Extract day - look for patterns like "dia 20", "no dia 15"
+    const dayPatterns = [
+      /dia\s*(\d{1,2})/i,
+      /no dia\s*(\d{1,2})/i,
+      /todo dia\s*(\d{1,2})/i,
+    ];
+    
+    let dueDay: number | undefined;
+    for (const pattern of dayPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        if (day >= 1 && day <= 31) {
+          dueDay = day;
+          break;
+        }
+      }
+    }
+    
+    // Try to extract description/name - what comes after value or before "dia"
+    let name: string | undefined;
+    const descPatterns = [
+      /(?:pagar|pagamento|agendar)\s+(?:de\s+)?(?:\d+\s*reais?\s+)?(?:de\s+)?(.+?)(?:\s+dia|\s+no dia|$)/i,
+      /(?:lembrete|lembre)\s+(?:de\s+)?(?:pagar\s+)?(.+?)(?:\s+\d|\s+dia|$)/i,
+    ];
+    
+    for (const pattern of descPatterns) {
+      const match = message.match(pattern);
+      if (match && match[1]) {
+        const extracted = match[1].trim().replace(/\d+\s*reais?/gi, '').trim();
+        if (extracted && extracted.length > 1 && !/^\d+$/.test(extracted)) {
+          name = extracted.charAt(0).toUpperCase() + extracted.slice(1);
+          break;
+        }
+      }
+    }
+    
+    return { isSchedule: true, amount, dueDay, name };
   };
 
   const processMessage = async (message: string) => {
@@ -220,8 +292,28 @@ export default function AI() {
     }
 
     // Check for schedule payment command
-    if (isScheduleCommand(message)) {
-      speak('Abrindo o agendador de pagamentos. Configure seu lembrete no formulário.');
+    const scheduleData = parseScheduleCommand(message);
+    if (scheduleData.isSchedule) {
+      const hasData = scheduleData.amount || scheduleData.dueDay || scheduleData.name;
+      
+      if (hasData) {
+        setSchedulePreFill({
+          amount: scheduleData.amount,
+          dueDay: scheduleData.dueDay,
+          name: scheduleData.name,
+        });
+        
+        const parts = [];
+        if (scheduleData.amount) parts.push(`${scheduleData.amount} reais`);
+        if (scheduleData.dueDay) parts.push(`dia ${scheduleData.dueDay}`);
+        if (scheduleData.name) parts.push(`para ${scheduleData.name}`);
+        
+        speak(`Abrindo agendamento${parts.length > 0 ? ': ' + parts.join(', ') : ''}. Complete as opções no formulário.`);
+      } else {
+        setSchedulePreFill(null);
+        speak('Abrindo o agendador de pagamentos. Configure seu lembrete no formulário.');
+      }
+      
       setShowScheduleModal(true);
       setStatusText('Agendar pagamento');
       return;
@@ -421,9 +513,11 @@ export default function AI() {
         isOpen={showScheduleModal}
         onClose={() => {
           setShowScheduleModal(false);
+          setSchedulePreFill(null);
           setStatusText('Pronta para ajudar');
         }}
         onSchedule={handleSchedulePayment}
+        preFill={schedulePreFill}
       />
       <motion.div
         className="min-h-screen pb-28 flex flex-col relative overflow-hidden"
@@ -597,9 +691,9 @@ export default function AI() {
         >
         {[
             { label: 'Qual meu saldo?', icon: Wallet, color: 'blue' },
-            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
-            { label: 'Meus pagamentos agendados', icon: Calendar, color: 'purple' },
             { label: 'Gastei 50 no almoço', icon: Utensils, color: 'green' },
+            { label: 'Agendar 600 reais dia 20', icon: Calendar, color: 'purple' },
+            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
           ].map((item, i) => {
             const Icon = item.icon;
             const colorClasses: Record<string, string> = {
