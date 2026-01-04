@@ -1,8 +1,8 @@
 // Biometric Authentication Service using Web Authentication API
 // Supports fingerprint, Face ID, and device PIN/password
 
-const CREDENTIAL_STORAGE_KEY = 'inovafinance_biometric_credential';
-const BIOMETRIC_ENABLED_KEY = 'inovafinance_biometric_enabled';
+const CREDENTIAL_STORAGE_KEY = 'inovabank_biometric_credential';
+const BIOMETRIC_ENABLED_KEY = 'inovabank_biometric_enabled';
 
 interface StoredCredential {
   credentialId: string;
@@ -88,7 +88,7 @@ export async function registerBiometric(matricula: number, userName: string): Pr
     const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
       challenge: challenge as BufferSource,
       rp: {
-        name: 'InovaFinance',
+        name: 'Inova Bank',
         id: window.location.hostname,
       },
       user: {

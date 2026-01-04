@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    const storedMatricula = localStorage.getItem('inovafinance_matricula');
+    const storedMatricula = localStorage.getItem('inovabank_matricula');
     if (storedMatricula) {
       loadUser(parseInt(storedMatricula, 10));
     } else {
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (profile) {
         setUser(profile);
-        localStorage.setItem('inovafinance_matricula', matricula.toString());
+        localStorage.setItem('inovabank_matricula', matricula.toString());
         return true;
       }
       
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('inovafinance_matricula');
+    localStorage.removeItem('inovabank_matricula');
   };
 
   return (
