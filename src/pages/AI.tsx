@@ -206,6 +206,9 @@ export default function AI() {
   const parseScheduleCommand = (message: string): { isSchedule: boolean; amount?: number; dueDay?: number; name?: string } => {
     const normalizedMessage = message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     
+    // Check if contains "dia" + number (day pattern) - this is the key indicator for scheduling
+    const hasDayPattern = /dia\s*\d{1,2}/.test(normalizedMessage);
+    
     const schedulePatterns = [
       'agendar',
       'agenda',
@@ -221,9 +224,16 @@ export default function AI() {
       'todo mes',
       'reais dia',
       'reais no dia',
+      'no dia',
     ];
     
-    const isSchedule = schedulePatterns.some(pattern => normalizedMessage.includes(pattern));
+    const hasScheduleWord = schedulePatterns.some(pattern => normalizedMessage.includes(pattern));
+    
+    // If has "dia X" pattern with payment context words, it's a schedule
+    const paymentContextWords = ['pagar', 'pagamento', 'conta', 'boleto', 'fatura', 'aluguel', 'luz', 'agua', 'internet', 'reais'];
+    const hasPaymentContext = paymentContextWords.some(word => normalizedMessage.includes(word));
+    
+    const isSchedule = hasScheduleWord || (hasDayPattern && hasPaymentContext);
     if (!isSchedule) return { isSchedule: false };
     
     // Extract amount - look for patterns like "600 reais", "R$ 500", "de 300"
