@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash } from 'lucide-react';
+import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash, DollarSign, CalendarDays } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { getGoals, addGoal, updateGoal, updateProfile, type Goal } from '@/lib/db';
+import { updateUserSalaryInfo, getUserSalaryInfo } from '@/lib/plannerDb';
 import { toast } from 'sonner';
 
 export default function Goals() {
@@ -15,8 +16,13 @@ export default function Goals() {
   const [activeTab, setActiveTab] = useState<'profile' | 'goals'>('profile');
   const [editingName, setEditingName] = useState(false);
   const [editingBalance, setEditingBalance] = useState(false);
+  const [editingSalary, setEditingSalary] = useState(false);
+  const [editingSalaryDay, setEditingSalaryDay] = useState(false);
   const [newName, setNewName] = useState('');
   const [newBalance, setNewBalance] = useState('');
+  const [newSalary, setNewSalary] = useState('');
+  const [newSalaryDay, setNewSalaryDay] = useState('');
+  const [salaryInfo, setSalaryInfo] = useState<{ salaryAmount: number; salaryDay: number } | null>(null);
   const [newGoal, setNewGoal] = useState({
     title: '',
     targetAmount: '',
@@ -27,10 +33,21 @@ export default function Goals() {
   useEffect(() => {
     if (user) {
       loadGoals();
+      loadSalaryInfo();
       setNewName(user.fullName || '');
       setNewBalance(user.initialBalance?.toString() || '0');
     }
   }, [user]);
+
+  const loadSalaryInfo = async () => {
+    if (!user) return;
+    const info = await getUserSalaryInfo(user.userId);
+    if (info) {
+      setSalaryInfo(info);
+      setNewSalary(info.salaryAmount.toString());
+      setNewSalaryDay(info.salaryDay.toString());
+    }
+  };
 
   const loadGoals = async () => {
     if (!user) return;
@@ -57,6 +74,32 @@ export default function Goals() {
     await refreshUser();
     setEditingBalance(false);
     toast.success('Saldo atualizado!');
+  };
+
+  const handleSaveSalary = async () => {
+    if (!user) return;
+    const salary = parseFloat(newSalary.replace(',', '.'));
+    if (isNaN(salary) || salary < 0) {
+      toast.error('Valor inválido');
+      return;
+    }
+    await updateUserSalaryInfo(user.userId, salary, salaryInfo?.salaryDay || 5);
+    await loadSalaryInfo();
+    setEditingSalary(false);
+    toast.success('Salário atualizado!');
+  };
+
+  const handleSaveSalaryDay = async () => {
+    if (!user) return;
+    const day = parseInt(newSalaryDay);
+    if (isNaN(day) || day < 1 || day > 31) {
+      toast.error('Dia inválido (1-31)');
+      return;
+    }
+    await updateUserSalaryInfo(user.userId, salaryInfo?.salaryAmount || 0, day);
+    await loadSalaryInfo();
+    setEditingSalaryDay(false);
+    toast.success('Dia do salário atualizado!');
   };
 
   const handleAddGoal = async () => {
@@ -301,6 +344,114 @@ export default function Goals() {
                 <p className="font-semibold text-lg">{formatCurrency(user?.creditLimit || 0)}</p>
               </div>
               <Lock className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </GlassCard>
+
+          {/* Valor do Salário - Editável */}
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Valor do Salário</p>
+                {editingSalary ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">R$</span>
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      value={newSalary}
+                      onChange={(e) => setNewSalary(e.target.value)}
+                      className="h-8 bg-muted/50 border-primary w-32"
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <p className="font-semibold text-lg text-green-500">
+                    {formatCurrency(salaryInfo?.salaryAmount || 0)}
+                  </p>
+                )}
+              </div>
+              {editingSalary ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingSalary(false);
+                      setNewSalary(salaryInfo?.salaryAmount?.toString() || '0');
+                    }}
+                    className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleSaveSalary}
+                    className="p-2 rounded-lg bg-primary text-primary-foreground"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingSalary(true)}
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </GlassCard>
+
+          {/* Dia do Salário - Editável */}
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <CalendarDays className="w-6 h-6 text-purple-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground mb-1">Dia do Pagamento</p>
+                {editingSalaryDay ? (
+                  <Input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={newSalaryDay}
+                    onChange={(e) => setNewSalaryDay(e.target.value)}
+                    className="h-8 bg-muted/50 border-primary w-20"
+                    autoFocus
+                  />
+                ) : (
+                  <p className="font-semibold text-lg text-purple-500">
+                    Dia {salaryInfo?.salaryDay || 5}
+                  </p>
+                )}
+              </div>
+              {editingSalaryDay ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingSalaryDay(false);
+                      setNewSalaryDay(salaryInfo?.salaryDay?.toString() || '5');
+                    }}
+                    className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleSaveSalaryDay}
+                    className="p-2 rounded-lg bg-primary text-primary-foreground"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingSalaryDay(true)}
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </GlassCard>
         </div>
