@@ -88,6 +88,7 @@ export type Database = {
           date: string
           description: string | null
           id: string
+          payment_method: string | null
           synced: boolean | null
           type: string
           updated_at: string
@@ -100,6 +101,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          payment_method?: string | null
           synced?: boolean | null
           type: string
           updated_at?: string
@@ -112,6 +114,7 @@ export type Database = {
           date?: string
           description?: string | null
           id?: string
+          payment_method?: string | null
           synced?: boolean | null
           type?: string
           updated_at?: string
@@ -132,28 +135,43 @@ export type Database = {
           birth_date: string | null
           cpf: string | null
           created_at: string
+          credit_due_day: number | null
+          credit_limit: number | null
+          credit_used: number | null
           email: string | null
           full_name: string | null
           id: string
+          initial_balance: number | null
           matricula: number
+          phone: string | null
         }
         Insert: {
           birth_date?: string | null
           cpf?: string | null
           created_at?: string
+          credit_due_day?: number | null
+          credit_limit?: number | null
+          credit_used?: number | null
           email?: string | null
           full_name?: string | null
           id?: string
+          initial_balance?: number | null
           matricula: number
+          phone?: string | null
         }
         Update: {
           birth_date?: string | null
           cpf?: string | null
           created_at?: string
+          credit_due_day?: number | null
+          credit_limit?: number | null
+          credit_used?: number | null
           email?: string | null
           full_name?: string | null
           id?: string
+          initial_balance?: number | null
           matricula?: number
+          phone?: string | null
         }
         Relationships: []
       }

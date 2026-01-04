@@ -76,7 +76,7 @@ export default function Goals() {
     toast.success('Meta criada!');
   };
 
-  const handleUpdateGoal = async (id: number, amount: number) => {
+  const handleUpdateGoal = async (id: string, amount: number) => {
     await updateGoal(id, { currentAmount: amount });
     loadGoals();
   };

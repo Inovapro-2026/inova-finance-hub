@@ -37,34 +37,36 @@ export default function Card() {
   };
 
   const formatCardNumber = () => {
-    const baseNumber = user?.userId.padStart(16, '4532') || '4532000000000000';
+    const baseNumber = user?.userId.toString().padStart(16, '4532') || '4532000000000000';
     return baseNumber.match(/.{1,4}/g)?.join(' ') || '';
   };
 
   const getExpiryDate = () => {
-    if (user?.creditDueDate) {
-      const date = new Date(user.creditDueDate);
-      return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`;
-    }
     const date = new Date();
     date.setFullYear(date.getFullYear() + 3);
     return `${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear().toString().slice(-2)}`;
   };
 
   const getDueDate = () => {
-    if (user?.creditDueDate) {
-      return new Date(user.creditDueDate).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'long',
-      });
+    const dueDay = user?.creditDueDay || 5;
+    const today = new Date();
+    let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+    if (today.getDate() > dueDay) {
+      dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
     }
-    return 'Não definida';
+    return dueDate.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: 'long',
+    });
   };
 
   const getDaysUntilDue = () => {
-    if (!user?.creditDueDate) return null;
+    const dueDay = user?.creditDueDay || 5;
     const today = new Date();
-    const dueDate = new Date(user.creditDueDate);
+    let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+    if (today.getDate() > dueDay) {
+      dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+    }
     const diffTime = dueDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
