@@ -162,7 +162,7 @@ RESPONDA SEMPRE EM PORTUGUÊS BRASILEIRO, SEJA ENGRAÇADO E RÍGIDO!`;
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://lovable.dev',
-        'X-Title': 'TioDaGrana Finance'
+        'X-Title': 'Inova Bank Finance'
       },
       body: JSON.stringify({
         model: 'google/gemini-2.0-flash-001',

@@ -244,7 +244,7 @@ export default function Login() {
             <Shield className="w-7 h-7" />
           </div>
           <h1 className="font-display text-3xl font-bold gradient-text">
-            INOVAFINANCE
+            INOVA BANK
           </h1>
         </div>
         <p className="text-muted-foreground text-sm">

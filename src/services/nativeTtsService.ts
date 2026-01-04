@@ -1,7 +1,7 @@
 // Native TTS Service using Web Speech API with Microsoft voices
 // Persists voice selection in localStorage
 
-const VOICE_STORAGE_KEY = 'inovafinance_selected_voice';
+const VOICE_STORAGE_KEY = 'inovabank_selected_voice';
 
 // Known masculine pt-BR voice names (Microsoft and others)
 const MASCULINE_VOICE_PATTERNS = [
