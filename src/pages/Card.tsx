@@ -160,52 +160,50 @@ export default function Card() {
 
           {/* Back of Card */}
           <div className="card-3d-face card-3d-back absolute inset-0">
-            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] border border-white/10 shadow-2xl overflow-hidden">
+            <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f0f23] border border-white/10 shadow-2xl overflow-hidden flex flex-col">
               {/* Magnetic Strip */}
-              <div className="mt-8 h-12 bg-black/80" />
+              <div className="mt-6 h-10 bg-black/80" />
 
               {/* CVV Area */}
-              <div className="mt-6 px-6">
-                <div className="bg-white/90 rounded-md p-3 flex items-center justify-between">
-                  <div className="flex-1 bg-gray-200 h-8 rounded flex items-center justify-end px-3">
+              <div className="mt-4 px-4">
+                <div className="bg-[#2a2a40] rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/50">CVV</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowCVV(!showCVV);
                       }}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 bg-[#1a1a2e] px-3 py-1.5 rounded-md"
                     >
-                      <span className="font-mono text-gray-800 font-bold">
-                        {showCVV ? '742' : '***'}
+                      <span className="font-mono text-white font-bold text-sm">
+                        {showCVV ? '742' : '•••'}
                       </span>
                       {showCVV ? (
-                        <EyeOff className="w-4 h-4 text-gray-600" />
+                        <EyeOff className="w-4 h-4 text-white/60" />
                       ) : (
-                        <Eye className="w-4 h-4 text-gray-600" />
+                        <Eye className="w-4 h-4 text-white/60" />
                       )}
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-white/50 mt-2 text-center">
-                  Código de Segurança (CVV)
-                </p>
               </div>
 
               {/* Available Credit */}
-              <div className="mt-6 px-6 text-center">
+              <div className="flex-1 flex flex-col items-center justify-center px-4">
                 <p className="text-[10px] text-white/50 uppercase mb-1">Limite Disponível</p>
-                <p className="font-display text-2xl font-bold text-secondary">
+                <p className="font-display text-xl font-bold text-secondary">
                   {formatCurrency(availableCredit)}
                 </p>
               </div>
 
               {/* Footer */}
-              <div className="absolute bottom-6 left-0 right-0 px-6 flex justify-between items-center">
+              <div className="px-4 pb-4 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-primary" />
                   <span className="text-xs text-white/50">Protegido</span>
                 </div>
-                <Fingerprint className="w-6 h-6 text-primary/50" />
+                <Fingerprint className="w-5 h-5 text-primary/50" />
               </div>
             </div>
           </div>
