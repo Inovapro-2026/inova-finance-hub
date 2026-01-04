@@ -4,6 +4,7 @@ import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance, getTransactions, addTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/db';
+import { getScheduledPayments, getUserSalaryInfo, calculateMonthlySummary } from '@/lib/plannerDb';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -19,11 +20,24 @@ interface FinancialContext {
   creditUsed: number;
   creditDueDay: number;
   daysUntilDue: number;
+  salaryAmount: number;
+  salaryDay: number;
+  monthlyPaymentsTotal: number;
+  projectedBalance: number;
+  todayExpenses: number;
+  todayIncome: number;
+  scheduledPayments: Array<{
+    name: string;
+    amount: number;
+    dueDay: number;
+    category: string;
+  }>;
   recentTransactions: Array<{
     amount: number;
     type: string;
     category: string;
     description: string;
+    date: string;
   }>;
 }
 
@@ -112,6 +126,13 @@ export default function AI() {
       creditUsed: 0,
       creditDueDay: 5,
       daysUntilDue: 0,
+      salaryAmount: 0,
+      salaryDay: 5,
+      monthlyPaymentsTotal: 0,
+      projectedBalance: 0,
+      todayExpenses: 0,
+      todayIncome: 0,
+      scheduledPayments: [],
       recentTransactions: [] 
     };
 
@@ -122,19 +143,34 @@ export default function AI() {
       type: t.type,
       category: t.category,
       description: t.description,
+      date: t.date.toISOString().split('T')[0],
     }));
 
-    // Calculate days until credit due date
-    const today = new Date();
-    const dueDay = user.creditDueDay || 5;
-    let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+    // Get today's transactions
+    const today = new Date().toISOString().split('T')[0];
+    const todayTransactions = transactions.filter(t => t.date.toISOString().split('T')[0] === today);
+    const todayExpenses = todayTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    const todayIncome = todayTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+
+    // Get salary and scheduled payments info
+    const salaryInfo = await getUserSalaryInfo(user.userId);
+    const salaryAmount = salaryInfo?.salaryAmount || 0;
+    const salaryDay = salaryInfo?.salaryDay || 5;
     
-    if (today.getDate() > dueDay) {
+    const scheduledPayments = await getScheduledPayments(user.userId);
+    const monthlySummary = await calculateMonthlySummary(user.userId, salaryAmount, salaryDay);
+
+    // Calculate days until credit due date
+    const todayDate = new Date();
+    const dueDay = user.creditDueDay || 5;
+    let dueDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), dueDay);
+    
+    if (todayDate.getDate() > dueDay) {
       // Due date already passed this month, use next month
-      dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+      dueDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, dueDay);
     }
     
-    const diffTime = dueDate.getTime() - today.getTime();
+    const diffTime = dueDate.getTime() - todayDate.getTime();
     const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     return { 
@@ -145,6 +181,18 @@ export default function AI() {
       creditUsed: creditUsed || 0,
       creditDueDay: dueDay,
       daysUntilDue,
+      salaryAmount,
+      salaryDay,
+      monthlyPaymentsTotal: monthlySummary.totalPayments,
+      projectedBalance: monthlySummary.projectedBalance,
+      todayExpenses,
+      todayIncome,
+      scheduledPayments: scheduledPayments.map(p => ({
+        name: p.name,
+        amount: p.amount,
+        dueDay: p.dueDay,
+        category: p.category,
+      })),
       recentTransactions 
     };
   };
@@ -548,9 +596,10 @@ export default function AI() {
           className="mt-10 flex flex-wrap gap-2 justify-center max-w-sm"
         >
         {[
-            { label: 'Gastei 50 no almoço', icon: ArrowDown, color: 'red' },
-            { label: 'Recebi 200 de freelance', icon: ArrowUp, color: 'green' },
-            { label: 'Paguei 150 de uber', icon: ArrowDown, color: 'purple' },
+            { label: 'Qual meu saldo?', icon: Wallet, color: 'blue' },
+            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
+            { label: 'Meus pagamentos agendados', icon: Calendar, color: 'purple' },
+            { label: 'Gastei 50 no almoço', icon: Utensils, color: 'green' },
           ].map((item, i) => {
             const Icon = item.icon;
             const colorClasses: Record<string, string> = {
