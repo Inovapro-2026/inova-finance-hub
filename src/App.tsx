@@ -15,6 +15,7 @@ import Goals from "./pages/Goals";
 import AI from "./pages/AI";
 import Planner from "./pages/Planner";
 import Statement from "./pages/Statement";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="/ai" element={<AI />} />
         <Route path="/planner" element={<Planner />} />
         <Route path="/statement" element={<Statement />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       {showNav && <BottomNav />}
