@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift, Settings } from 'lucide-react';
+import { Mic, MicOff, Send, Sparkles, Volume2, VolumeX, Keyboard, X, Check, Edit3, ArrowDown, ArrowUp, Target, Utensils, Car, Gamepad2, ShoppingBag, Heart, GraduationCap, Receipt, MoreHorizontal, Briefcase, Laptop, TrendingUp, Gift } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateBalance, getTransactions, addTransaction, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/db';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface FinancialContext {
   balance: number;
@@ -49,47 +48,33 @@ export default function AI() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [showKeyboard, setShowKeyboard] = useState(false);
-  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [input, setInput] = useState('');
   const [statusText, setStatusText] = useState('Toque para falar');
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   const [editingAmount, setEditingAmount] = useState(false);
   const [editedAmount, setEditedAmount] = useState('');
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceIndex, setSelectedVoiceIndex] = useState<number>(0);
   const recognitionRef = useRef<any>(null);
 
-  // Load available voices
+  // Load voices
   useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      // Filter to show all voices, prioritizing Portuguese
-      const allVoices = voices.sort((a, b) => {
-        const aIsPt = a.lang.startsWith('pt') ? 0 : 1;
-        const bIsPt = b.lang.startsWith('pt') ? 0 : 1;
-        return aIsPt - bIsPt;
-      });
-      setAvailableVoices(allVoices);
-      
-      // Auto-select best Portuguese voice
-      const ptIndex = allVoices.findIndex(v => 
-        v.lang.startsWith('pt') && (v.name.includes('Google') || v.name.includes('Microsoft'))
-      );
-      if (ptIndex >= 0) setSelectedVoiceIndex(ptIndex);
-      else {
-        const anyPt = allVoices.findIndex(v => v.lang.startsWith('pt'));
-        if (anyPt >= 0) setSelectedVoiceIndex(anyPt);
-      }
-    };
-    
     if ('speechSynthesis' in window) {
-      loadVoices();
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
     }
     return () => window.speechSynthesis.cancel();
   }, []);
 
-  // Native TTS function with selected voice
+  // Get the best Portuguese voice
+  const getBestVoice = useCallback(() => {
+    const voices = window.speechSynthesis.getVoices();
+    const ptVoices = voices.filter(v => v.lang.startsWith('pt'));
+    const premiumVoice = ptVoices.find(v => 
+      v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Luciana')
+    );
+    return premiumVoice || ptVoices[0] || voices[0] || null;
+  }, []);
+
+  // Native TTS function
   const speak = useCallback((text: string) => {
     if (!voiceEnabled || !('speechSynthesis' in window)) return;
 
@@ -105,15 +90,14 @@ export default function AI() {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanText);
     
-    // Use selected voice
-    if (availableVoices[selectedVoiceIndex]) {
-      utterance.voice = availableVoices[selectedVoiceIndex];
-      utterance.lang = availableVoices[selectedVoiceIndex].lang;
+    const voice = getBestVoice();
+    if (voice) {
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
     } else {
       utterance.lang = 'pt-BR';
     }
     
-    // Optimize voice settings
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
@@ -122,7 +106,7 @@ export default function AI() {
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
-  }, [voiceEnabled, availableVoices, selectedVoiceIndex]);
+  }, [voiceEnabled, getBestVoice]);
 
   const stopSpeaking = useCallback(() => {
     window.speechSynthesis.cancel();
@@ -145,7 +129,12 @@ export default function AI() {
   };
 
   const processMessage = async (message: string) => {
-    if (!message.trim() || !user) return;
+    if (!message.trim()) return;
+    
+    if (!user) {
+      toast.error('Faça login para usar a assistente');
+      return;
+    }
 
     setIsLoading(true);
     setStatusText('Processando...');
@@ -293,18 +282,8 @@ export default function AI() {
       <div className="absolute inset-0 grid-pattern opacity-30" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
       
-      {/* Voice Controls - Top Right */}
-      <div className="absolute top-6 right-6 z-20 flex gap-2">
-        {/* Voice Settings Button */}
-        <motion.button
-          onClick={() => setShowVoiceSettings(!showVoiceSettings)}
-          className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all border bg-muted/50 text-muted-foreground border-muted hover:bg-primary/20 hover:text-primary hover:border-primary/30"
-          whileTap={{ scale: 0.95 }}
-        >
-          <Settings className="w-5 h-5" />
-        </motion.button>
-        
-        {/* Voice Toggle */}
+      {/* Voice Toggle - Top Right */}
+      <div className="absolute top-6 right-6 z-20">
         <motion.button
           onClick={() => {
             if (isSpeaking) stopSpeaking();
@@ -322,63 +301,6 @@ export default function AI() {
           {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
         </motion.button>
       </div>
-
-      {/* Voice Settings Panel */}
-      <AnimatePresence>
-        {showVoiceSettings && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-20 right-6 z-30 w-72 bg-card/95 backdrop-blur-xl border border-border rounded-2xl p-4 shadow-xl"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">Configurações de Voz</h3>
-              <button onClick={() => setShowVoiceSettings(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground mb-1.5 block">Selecionar Voz</label>
-                <Select
-                  value={selectedVoiceIndex.toString()}
-                  onValueChange={(val) => setSelectedVoiceIndex(parseInt(val))}
-                >
-                  <SelectTrigger className="w-full text-xs">
-                    <SelectValue placeholder="Escolha uma voz" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {availableVoices.map((voice, index) => (
-                      <SelectItem key={index} value={index.toString()} className="text-xs">
-                        <span className="flex items-center gap-2">
-                          <span className={cn(
-                            "w-2 h-2 rounded-full",
-                            voice.lang.startsWith('pt') ? 'bg-green-500' : 'bg-muted-foreground'
-                          )} />
-                          {voice.name.slice(0, 30)} ({voice.lang})
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <button
-                onClick={() => {
-                  speak('Olá! Esta é a voz selecionada.');
-                  setShowVoiceSettings(false);
-                }}
-                className="w-full py-2 text-xs bg-primary/20 text-primary rounded-lg hover:bg-primary/30 transition-all"
-              >
-                <Volume2 className="w-3 h-3 inline mr-1.5" />
-                Testar Voz
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Main Content - Centered Microphone */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
