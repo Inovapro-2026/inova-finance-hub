@@ -1,17 +1,17 @@
-// Native TTS Service using Web Speech API with Microsoft voices
+// Native TTS Service using Web Speech API - Português Brasileiro
 // Persists voice selection in localStorage
 
 const VOICE_STORAGE_KEY = 'inovabank_selected_voice';
 
-// Known masculine pt-BR voice names (Microsoft and others)
-const MASCULINE_VOICE_PATTERNS = [
-  'Daniel',
-  'Antonio',
-  'Humberto',
-  'Rafael',
-  'Male',
-  'Masculino',
-  'Homem',
+// Prioritized pt-BR voice names (in order of preference)
+const PRIORITY_VOICES = [
+  'Google português do Brasil',
+  'Luciana',
+  'Microsoft Maria',
+  'Maria',
+  'Francisca',
+  'pt-BR',
+  'Portuguese (Brazil)',
 ];
 
 let selectedVoice: SpeechSynthesisVoice | null = null;
@@ -23,19 +23,33 @@ let onVoiceSelectedCallback: (() => void) | null = null;
  */
 export function getPtBrVoices(): SpeechSynthesisVoice[] {
   const voices = window.speechSynthesis.getVoices();
-  return voices.filter(v => v.lang === 'pt-BR' || v.lang.startsWith('pt-BR'));
+  return voices.filter(v => 
+    v.lang === 'pt-BR' || 
+    v.lang === 'pt_BR' ||
+    v.lang.startsWith('pt-BR') ||
+    v.lang.startsWith('pt_BR') ||
+    (v.lang.startsWith('pt') && v.name.toLowerCase().includes('brasil'))
+  );
 }
 
 /**
- * Get masculine pt-BR voices
+ * Get the best pt-BR voice based on priority list
  */
-export function getMasculinePtBrVoices(): SpeechSynthesisVoice[] {
+export function getBestPtBrVoice(): SpeechSynthesisVoice | null {
   const ptBrVoices = getPtBrVoices();
-  return ptBrVoices.filter(voice => 
-    MASCULINE_VOICE_PATTERNS.some(pattern => 
-      voice.name.toLowerCase().includes(pattern.toLowerCase())
-    )
-  );
+  
+  if (ptBrVoices.length === 0) return null;
+  
+  // Try to find a prioritized voice
+  for (const priorityName of PRIORITY_VOICES) {
+    const found = ptBrVoices.find(v => 
+      v.name.toLowerCase().includes(priorityName.toLowerCase())
+    );
+    if (found) return found;
+  }
+  
+  // Return first pt-BR voice as fallback
+  return ptBrVoices[0];
 }
 
 /**
@@ -83,8 +97,8 @@ export function initNativeTts(onReady?: () => void): void {
       return true;
     }
     
-    // Show voice selector
-    showVoiceSelector();
+    // Auto-select best pt-BR voice
+    autoSelectVoice();
     return true;
   };
 
@@ -98,54 +112,23 @@ export function initNativeTts(onReady?: () => void): void {
 }
 
 /**
- * Show native voice selector prompt
+ * Auto-select the best pt-BR voice (no prompt needed)
  */
-function showVoiceSelector(): void {
-  const ptBrVoices = getPtBrVoices();
+function autoSelectVoice(): void {
+  const bestVoice = getBestPtBrVoice();
   
-  if (ptBrVoices.length === 0) {
-    console.warn('TTS: No pt-BR voices available');
-    // Use any available voice as fallback
+  if (bestVoice) {
+    selectedVoice = bestVoice;
+    saveVoice(selectedVoice);
+    console.log('TTS: Auto-selected pt-BR voice:', selectedVoice.name);
+  } else {
+    // Fallback to any available voice
     const allVoices = window.speechSynthesis.getVoices();
     if (allVoices.length > 0) {
       selectedVoice = allVoices[0];
       saveVoice(selectedVoice);
+      console.log('TTS: Using fallback voice:', selectedVoice.name);
     }
-    onVoiceSelectedCallback?.();
-    return;
-  }
-
-  // Prioritize masculine voices
-  const masculineVoices = getMasculinePtBrVoices();
-  
-  // Build selection options
-  let voiceOptions = masculineVoices.length > 0 ? masculineVoices : ptBrVoices;
-  
-  // Create options string for prompt
-  const optionsText = voiceOptions
-    .map((v, i) => `${i + 1}. ${v.name}`)
-    .join('\n');
-  
-  const message = `Escolha uma voz masculina pt-BR:\n\n${optionsText}\n\nDigite o número da voz (1-${voiceOptions.length}):`;
-  
-  // Use native prompt
-  const selection = prompt(message, '1');
-  
-  if (selection) {
-    const index = parseInt(selection, 10) - 1;
-    if (index >= 0 && index < voiceOptions.length) {
-      selectedVoice = voiceOptions[index];
-      saveVoice(selectedVoice);
-      console.log('TTS: Voice selected:', selectedVoice.name);
-    } else {
-      // Default to first option
-      selectedVoice = voiceOptions[0];
-      saveVoice(selectedVoice);
-    }
-  } else {
-    // User cancelled, use first available
-    selectedVoice = voiceOptions[0];
-    saveVoice(selectedVoice);
   }
   
   onVoiceSelectedCallback?.();
