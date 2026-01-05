@@ -714,113 +714,34 @@ export default function AI() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      {/* Animated Tech Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 grid-pattern opacity-20" />
+      {/* Animated Tech Background - Purple/Blue Gradient */}
+      <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-purple-950/90 via-blue-950/80 to-indigo-950/90">
+        {/* Soft gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background/50 via-transparent to-purple-900/30" />
         
-        {/* Floating Particles */}
-        {[...Array(20)].map((_, i) => (
+        {/* Subtle floating orbs - reduced for performance */}
+        <div 
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-purple-500/15 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '8s' }}
+        />
+        <div 
+          className="absolute bottom-1/3 right-1/4 w-[300px] h-[300px] bg-blue-500/15 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '10s', animationDelay: '2s' }}
+        />
+        <div 
+          className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDuration: '12s', animationDelay: '4s' }}
+        />
+        
+        {/* Light scanning line - only when active */}
+        {(isListening || isSpeaking) && (
           <motion.div
-            key={`particle-${i}`}
-            className="absolute w-1 h-1 bg-primary/40 rounded-full"
-            initial={{ 
-              x: Math.random() * window.innerWidth, 
-              y: Math.random() * window.innerHeight,
-              opacity: 0.2 
-            }}
-            animate={{ 
-              y: [null, Math.random() * -200 - 100],
-              opacity: [0.2, 0.8, 0.2],
-              scale: [1, 1.5, 1]
-            }}
-            transition={{ 
-              duration: 4 + Math.random() * 4, 
-              repeat: Infinity,
-              delay: Math.random() * 2
-            }}
+            className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-400/40 to-transparent"
+            initial={{ top: '0%' }}
+            animate={{ top: ['0%', '100%', '0%'] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
           />
-        ))}
-        
-        {/* Glowing Orbs */}
-        <motion.div 
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl"
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.1, 0.2, 0.1]
-          }}
-          transition={{ duration: 6, repeat: Infinity }}
-        />
-        <motion.div 
-          className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-3xl"
-          animate={{ 
-            scale: [1.2, 1, 1.2],
-            opacity: [0.15, 0.05, 0.15]
-          }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
-        <motion.div 
-          className="absolute top-1/3 right-1/4 w-[250px] h-[250px] bg-accent/10 rounded-full blur-3xl"
-          animate={{ 
-            scale: [1, 1.3, 1],
-            x: [0, 30, 0],
-            y: [0, -20, 0]
-          }}
-          transition={{ duration: 10, repeat: Infinity }}
-        />
-        
-        {/* Tech Lines - Only when active */}
-        <AnimatePresence>
-          {(isListening || isSpeaking || isLoading) && (
-            <>
-              {/* Horizontal scanning lines */}
-              <motion.div
-                className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
-                initial={{ top: '0%', opacity: 0 }}
-                animate={{ top: ['0%', '100%'], opacity: [0, 1, 0] }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-              />
-              <motion.div
-                className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary/40 to-transparent"
-                initial={{ top: '100%', opacity: 0 }}
-                animate={{ top: ['100%', '0%'], opacity: [0, 1, 0] }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'linear', delay: 1 }}
-              />
-              
-              {/* Corner brackets */}
-              <motion.div
-                className="absolute top-20 left-6 w-12 h-12 border-l-2 border-t-2 border-primary/40"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <motion.div
-                className="absolute top-20 right-6 w-12 h-12 border-r-2 border-t-2 border-primary/40"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-              />
-              <motion.div
-                className="absolute bottom-32 left-6 w-12 h-12 border-l-2 border-b-2 border-secondary/40"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-              />
-              <motion.div
-                className="absolute bottom-32 right-6 w-12 h-12 border-r-2 border-b-2 border-secondary/40"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
-              />
-            </>
-          )}
-        </AnimatePresence>
+        )}
       </div>
       
       {/* Controls - Top Right */}
@@ -872,132 +793,46 @@ export default function AI() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
         >
-          {/* Rotating Tech Ring - Always visible */}
+          {/* Simple rotating ring */}
           <motion.div
-            className="absolute inset-0 rounded-full border border-primary/20"
-            style={{ width: 180, height: 180, top: -40, left: -40 }}
+            className="absolute inset-0 rounded-full border border-purple-400/30"
+            style={{ width: 160, height: 160, top: -30, left: -30 }}
             animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-          >
-            {/* Ring dots */}
-            {[0, 90, 180, 270].map((deg) => (
-              <motion.div
-                key={deg}
-                className="absolute w-2 h-2 bg-primary/60 rounded-full"
-                style={{
-                  top: '50%',
-                  left: '50%',
-                  transform: `rotate(${deg}deg) translateY(-90px) translateX(-50%)`
-                }}
-                animate={{ opacity: [0.3, 1, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity, delay: deg / 360 }}
-              />
-            ))}
-          </motion.div>
-          
-          {/* Counter-rotating ring */}
-          <motion.div
-            className="absolute inset-0 rounded-full border border-dashed border-secondary/15"
-            style={{ width: 220, height: 220, top: -60, left: -60 }}
-            animate={{ rotate: -360 }}
-            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
           />
 
           {/* Pulsing Rings - Only when listening or speaking */}
           <AnimatePresence>
             {(isListening || isSpeaking) && (
               <>
-                {/* Electric pulse rings */}
-                {[...Array(4)].map((_, i) => (
+                {/* Simple pulse rings - reduced from 4 to 2 */}
+                {[0, 1].map((i) => (
                   <motion.div
                     key={`ring-${i}`}
                     className={cn(
-                      "absolute inset-0 rounded-full",
-                      isListening ? "border-2 border-destructive/50" : "border-2 border-secondary/40"
+                      "absolute inset-0 rounded-full border",
+                      isListening ? "border-red-500/40" : "border-blue-400/40"
                     )}
-                    initial={{ scale: 1, opacity: 0.8 }}
-                    animate={{ scale: 2.5 + i * 0.5, opacity: 0 }}
+                    initial={{ scale: 1, opacity: 0.6 }}
+                    animate={{ scale: 2 + i * 0.5, opacity: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ 
                       duration: 2, 
                       repeat: Infinity, 
                       ease: 'easeOut',
-                      delay: i * 0.4
+                      delay: i * 0.6
                     }}
-                    style={{ width: 160, height: 160, top: -30, left: -30 }}
+                    style={{ width: 140, height: 140, top: -20, left: -20 }}
                   />
                 ))}
-                
-                {/* Orbiting particles */}
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={`orbit-${i}`}
-                    className="absolute w-1.5 h-1.5 rounded-full"
-                    style={{
-                      background: isListening 
-                        ? 'hsl(0 72% 51%)' 
-                        : 'hsl(217 100% 65%)',
-                      boxShadow: isListening 
-                        ? '0 0 10px hsl(0 72% 51%)' 
-                        : '0 0 10px hsl(217 100% 65%)'
-                    }}
-                    initial={{ opacity: 0 }}
-                    animate={{
-                      opacity: [0.5, 1, 0.5],
-                      rotate: [0, 360],
-                    }}
-                    transition={{ 
-                      rotate: { duration: 2 + i * 0.3, repeat: Infinity, ease: 'linear' },
-                      opacity: { duration: 1, repeat: Infinity }
-                    }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <motion.div
-                      className="absolute"
-                      style={{
-                        width: 120 + i * 15,
-                        height: 120 + i * 15,
-                        top: -60 - i * 7.5 + 3,
-                        left: -60 - i * 7.5 + 3,
-                        transformOrigin: 'center',
-                      }}
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 3 + i * 0.5, repeat: Infinity, ease: 'linear' }}
-                    >
-                      <div 
-                        className="absolute w-1.5 h-1.5 rounded-full"
-                        style={{
-                          top: 0,
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          background: isListening 
-                            ? 'hsl(0 72% 51%)' 
-                            : 'hsl(217 100% 65%)',
-                          boxShadow: isListening 
-                            ? '0 0 10px hsl(0 72% 51%)' 
-                            : '0 0 10px hsl(217 100% 65%)'
-                        }}
-                      />
-                    </motion.div>
-                  </motion.div>
-                ))}
 
-                {/* Glowing backdrop */}
-                <motion.div
-                  className="absolute inset-0 rounded-full blur-2xl"
-                  style={{ 
-                    width: 200, 
-                    height: 200, 
-                    top: -50, 
-                    left: -50,
-                    background: isListening 
-                      ? 'radial-gradient(circle, hsl(0 72% 51% / 0.4) 0%, transparent 70%)' 
-                      : 'radial-gradient(circle, hsl(217 100% 65% / 0.4) 0%, transparent 70%)'
-                  }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
+                {/* Simple glow backdrop */}
+                <div 
+                  className={cn(
+                    "absolute inset-0 rounded-full blur-xl transition-colors duration-300",
+                    isListening ? "bg-red-500/30" : "bg-blue-500/30"
+                  )}
+                  style={{ width: 160, height: 160, top: -30, left: -30 }}
                 />
               </>
             )}
