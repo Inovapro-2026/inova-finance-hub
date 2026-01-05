@@ -256,7 +256,7 @@ export async function getTodaysDuePayments(userId: number): Promise<ScheduledPay
 }
 
 // Calculate monthly summary
-export async function calculateMonthlySummary(userId: number, salaryAmount: number, salaryDay: number): Promise<{
+export async function calculateMonthlySummary(userId: number, salaryAmount: number, salaryDay: number, advanceAmount: number = 0): Promise<{
   totalPayments: number;
   paymentsList: ScheduledPayment[];
   projectedBalance: number;
@@ -278,7 +278,10 @@ export async function calculateMonthlySummary(userId: number, salaryAmount: numb
   });
   
   const totalPayments = monthlyPayments.reduce((sum, p) => sum + p.amount, 0);
-  const projectedBalance = salaryAmount - totalPayments;
+  
+  // Calculate projected balance: salary + advance - payments
+  const totalIncome = salaryAmount + advanceAmount;
+  const projectedBalance = totalIncome - totalPayments;
   
   // Find heaviest payment
   const heaviestPayment = monthlyPayments.length > 0 
