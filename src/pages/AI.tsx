@@ -529,6 +529,11 @@ export default function AI() {
   };
 
   const toggleListening = () => {
+    // Stop speaking if currently speaking
+    if (isSpeaking) {
+      handleStopSpeaking();
+    }
+    
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
       toast.error('Reconhecimento de voz não suportado');
       return;
