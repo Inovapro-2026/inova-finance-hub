@@ -38,7 +38,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       
-      const welcomeText = 'Bem-vindo ao Inova Bank! Seu banco digital inteligente.';
+      const welcomeText = 'Bem-vindo ao INOVABANK! Seu assistente financeiro inteligente.';
       const utterance = new SpeechSynthesisUtterance(welcomeText);
       utterance.lang = 'pt-BR';
       utterance.rate = 0.85;
