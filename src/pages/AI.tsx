@@ -14,6 +14,7 @@ import { addScheduledPayment } from '@/lib/plannerDb';
 
 interface FinancialContext {
   balance: number;
+  debitBalance: number;
   totalIncome: number;
   totalExpense: number;
   creditLimit: number;
@@ -124,6 +125,7 @@ export default function AI() {
   const getFinancialContext = async (): Promise<FinancialContext> => {
     if (!user) return { 
       balance: 0, 
+      debitBalance: 0,
       totalIncome: 0, 
       totalExpense: 0, 
       creditLimit: 0,
@@ -140,7 +142,7 @@ export default function AI() {
       recentTransactions: [] 
     };
 
-    const { balance, totalIncome, totalExpense, creditUsed } = await calculateBalance(user.userId, user.initialBalance);
+    const { balance, debitBalance, totalIncome, totalExpense, creditUsed } = await calculateBalance(user.userId, user.initialBalance);
     const transactions = await getTransactions(user.userId);
     const recentTransactions = transactions.slice(0, 10).map((t) => ({
       amount: t.amount,
@@ -179,6 +181,7 @@ export default function AI() {
 
     return { 
       balance, 
+      debitBalance,
       totalIncome, 
       totalExpense, 
       creditLimit: user.creditLimit || 5000,
