@@ -59,8 +59,8 @@ const tools = [
           },
           category: {
             type: "string",
-            enum: ["food", "transport", "entertainment", "shopping", "health", "education", "bills", "salary", "freelance", "investment", "gift", "other"],
-            description: "Categoria da transação"
+            enum: ["Alimentação", "Transporte", "Lazer", "Compras", "Saúde", "Educação", "Contas", "Salário", "Freelance", "Investimentos", "Presente", "Outros"],
+            description: "Categoria da transação em português"
           },
           description: {
             type: "string",
@@ -212,8 +212,19 @@ CONTEXTO FINANCEIRO:
 PAGAMENTOS AGENDADOS:
 ${scheduledPaymentsInfo}
 
-CATEGORIAS:
-food=alimentação | transport=transporte | entertainment=lazer | shopping=compras | health=saúde | education=educação | bills=contas | salary=salário | freelance=extra | investment=investimento | gift=presente | other=outros
+CATEGORIAS (USE SEMPRE EM PORTUGUÊS):
+- Alimentação (comida, restaurante, lanche, café, mercado)
+- Transporte (uber, ônibus, gasolina, estacionamento)
+- Lazer (cinema, festa, bar, entretenimento)
+- Compras (roupa, eletrônicos, loja)
+- Saúde (remédio, médico, farmácia)
+- Educação (curso, livro, escola)
+- Contas (luz, água, internet, aluguel)
+- Salário (pagamento do trabalho)
+- Freelance (trabalho extra, bico)
+- Investimentos (aplicação, poupança)
+- Presente (dar ou receber presente)
+- Outros (qualquer outra coisa)
 
 SEJA ENGRAÇADO, RÍGIDO E IMPLACÁVEL! 🔥`;
 
