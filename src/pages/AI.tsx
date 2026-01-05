@@ -96,6 +96,8 @@ export default function AI() {
   const [editedAmount, setEditedAmount] = useState('');
   const [showCustomCategory, setShowCustomCategory] = useState(false);
   const [customCategoryInput, setCustomCategoryInput] = useState('');
+  const [currentDebitBalance, setCurrentDebitBalance] = useState(0);
+  const [currentCreditAvailable, setCurrentCreditAvailable] = useState(0);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [schedulePreFill, setSchedulePreFill] = useState<{
     amount?: number;
@@ -369,10 +371,22 @@ export default function AI() {
       // Check if a transaction needs confirmation
       if (data.functionCall?.name === 'record_transaction') {
         const { args } = data.functionCall;
+        
+        // Calculate real debit balance
+        const { debitBalance } = await calculateBalance(user.userId, user.initialBalance);
+        const realDebitBalance = Math.max(0, debitBalance); // Never show negative
+        const creditAvailable = (user.creditLimit || 0) - (user.creditUsed || 0);
+        
+        setCurrentDebitBalance(realDebitBalance);
+        setCurrentCreditAvailable(Math.max(0, creditAvailable));
+        
+        // Auto-select credit if no debit balance available
+        const defaultPaymentMethod = realDebitBalance <= 0 && user.hasCreditCard ? 'credit' : 'debit';
+        
         setPendingTransaction({
           amount: args.amount,
           type: args.type as 'income' | 'expense',
-          paymentMethod: 'debit', // Default to debit, user can change
+          paymentMethod: defaultPaymentMethod,
           category: args.category,
           description: args.description,
         });
@@ -917,39 +931,64 @@ export default function AI() {
                 <div className="mb-6">
                   <label className="text-xs text-muted-foreground mb-3 block">Pagar com</label>
                   <div className="flex gap-2">
-                    <motion.button
-                      onClick={() => updatePaymentMethod('debit')}
-                      className={cn(
-                        "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
-                        pendingTransaction.paymentMethod === 'debit'
-                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
-                          : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
-                      )}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Wallet className="w-6 h-6" />
-                      <span className="text-sm">Débito</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Saldo: R$ {((user?.initialBalance || 0) - (user?.creditUsed || 0)).toFixed(2)}
-                      </span>
-                    </motion.button>
-                    <motion.button
-                      onClick={() => updatePaymentMethod('credit')}
-                      className={cn(
-                        "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
-                        pendingTransaction.paymentMethod === 'credit'
-                          ? 'bg-secondary/20 text-secondary border-secondary/50'
-                          : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
-                      )}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <CreditCard className="w-6 h-6" />
-                      <span className="text-sm">Crédito</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        Limite: R$ {((user?.creditLimit || 5000) - (user?.creditUsed || 0)).toFixed(2)}
-                      </span>
-                    </motion.button>
+                    {/* Only show debit if there's balance available */}
+                    {currentDebitBalance > 0 && (
+                      <motion.button
+                        onClick={() => updatePaymentMethod('debit')}
+                        className={cn(
+                          "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
+                          pendingTransaction.paymentMethod === 'debit'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                            : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
+                        )}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Wallet className="w-6 h-6" />
+                        <span className="text-sm">Débito</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Saldo: R$ {currentDebitBalance.toFixed(2)}
+                        </span>
+                      </motion.button>
+                    )}
+                    
+                    {/* Show credit option if user has credit card */}
+                    {user?.hasCreditCard && (
+                      <motion.button
+                        onClick={() => updatePaymentMethod('credit')}
+                        className={cn(
+                          "flex-1 py-4 rounded-xl font-medium transition-all flex flex-col items-center gap-2 border",
+                          pendingTransaction.paymentMethod === 'credit'
+                            ? 'bg-secondary/20 text-secondary border-secondary/50'
+                            : 'bg-muted/30 border-transparent text-muted-foreground hover:border-border'
+                        )}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <CreditCard className="w-6 h-6" />
+                        <span className="text-sm">Crédito</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Limite: R$ {currentCreditAvailable.toFixed(2)}
+                        </span>
+                      </motion.button>
+                    )}
+                    
+                    {/* Show message if no payment method available */}
+                    {currentDebitBalance <= 0 && !user?.hasCreditCard && (
+                      <div className="flex-1 py-4 rounded-xl bg-destructive/10 border border-destructive/30 flex flex-col items-center gap-2">
+                        <Wallet className="w-6 h-6 text-destructive" />
+                        <span className="text-sm text-destructive">Sem saldo</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          Saldo zerado
+                        </span>
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* Warning when debit is zero */}
+                  {currentDebitBalance <= 0 && user?.hasCreditCard && (
+                    <p className="text-xs text-warning mt-2 text-center">
+                      ⚠️ Saldo débito zerado. Usando crédito.
+                    </p>
+                  )}
                 </div>
               )}
 
