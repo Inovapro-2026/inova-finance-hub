@@ -665,8 +665,8 @@ export default function AI() {
           animate={{ y: 0, opacity: 1 }}
           className="text-center mb-12"
         >
-          <h1 className="font-display text-3xl font-bold gradient-text mb-2">NOVA</h1>
-          <p className="text-muted-foreground text-sm">Assistente Financeira Inteligente</p>
+          <h1 className="font-display text-3xl font-bold gradient-text mb-2">INOVA</h1>
+          <p className="text-muted-foreground text-sm">Sua Assistente Financeira Inteligente</p>
         </motion.div>
 
         {/* Central Microphone Button */}
