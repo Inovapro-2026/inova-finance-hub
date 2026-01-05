@@ -1083,6 +1083,49 @@ export default function AI() {
                 </div>
               </div>
 
+              {/* Insufficient balance warning */}
+              {pendingTransaction.type === 'expense' && (() => {
+                const transactionAmount = editingAmount ? parseFloat(editedAmount) : pendingTransaction.amount;
+                const availableInMethod = pendingTransaction.paymentMethod === 'debit' 
+                  ? currentDebitBalance 
+                  : currentCreditAvailable;
+                const totalAvailable = currentDebitBalance + currentCreditAvailable;
+                const exceedsCurrentMethod = transactionAmount > availableInMethod;
+                const exceedsAll = transactionAmount > totalAvailable;
+                
+                if (exceedsAll) {
+                  return (
+                    <div className="mb-4 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
+                      <div className="flex items-center gap-2 text-destructive mb-2">
+                        <X className="w-5 h-5" />
+                        <span className="font-medium">Saldo insuficiente!</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Valor: R$ {transactionAmount.toFixed(2)} | Disponível total: R$ {totalAvailable.toFixed(2)}
+                      </p>
+                    </div>
+                  );
+                } else if (exceedsCurrentMethod) {
+                  return (
+                    <div className="mb-4 p-4 rounded-xl bg-warning/10 border border-warning/30">
+                      <div className="flex items-center gap-2 text-warning mb-2">
+                        <span className="font-medium">⚠️ Limite do {pendingTransaction.paymentMethod === 'debit' ? 'débito' : 'crédito'} insuficiente</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Disponível: R$ {availableInMethod.toFixed(2)} | 
+                        {pendingTransaction.paymentMethod === 'debit' && currentCreditAvailable > 0 
+                          ? ` Tente usar crédito (R$ ${currentCreditAvailable.toFixed(2)})` 
+                          : pendingTransaction.paymentMethod === 'credit' && currentDebitBalance > 0
+                          ? ` Tente usar débito (R$ ${currentDebitBalance.toFixed(2)})`
+                          : ' Reduza o valor'
+                        }
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Actions */}
               <div className="flex gap-3">
                 <motion.button
@@ -1092,14 +1135,30 @@ export default function AI() {
                 >
                   Cancelar
                 </motion.button>
-                <motion.button
-                  onClick={confirmTransaction}
-                  className="flex-1 h-14 rounded-2xl bg-gradient-to-br from-primary to-secondary text-white font-medium flex items-center justify-center gap-2"
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <Check className="w-5 h-5" />
-                  Confirmar
-                </motion.button>
+                {(() => {
+                  const transactionAmount = editingAmount ? parseFloat(editedAmount) : pendingTransaction.amount;
+                  const availableInMethod = pendingTransaction.paymentMethod === 'debit' 
+                    ? currentDebitBalance 
+                    : currentCreditAvailable;
+                  const canConfirm = pendingTransaction.type === 'income' || transactionAmount <= availableInMethod;
+                  
+                  return (
+                    <motion.button
+                      onClick={confirmTransaction}
+                      disabled={!canConfirm}
+                      className={cn(
+                        "flex-1 h-14 rounded-2xl font-medium flex items-center justify-center gap-2",
+                        canConfirm 
+                          ? "bg-gradient-to-br from-primary to-secondary text-white"
+                          : "bg-muted/30 text-muted-foreground cursor-not-allowed"
+                      )}
+                      whileTap={canConfirm ? { scale: 0.98 } : undefined}
+                    >
+                      <Check className="w-5 h-5" />
+                      {canConfirm ? 'Confirmar' : 'Sem saldo'}
+                    </motion.button>
+                  );
+                })()}
               </div>
             </motion.div>
           </motion.div>
