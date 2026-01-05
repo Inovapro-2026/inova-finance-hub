@@ -51,6 +51,20 @@ interface PendingTransaction {
 }
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  // Portuguese category names (used in UI)
+  'Alimentação': Utensils,
+  'Transporte': Car,
+  'Lazer': Gamepad2,
+  'Compras': ShoppingBag,
+  'Saúde': Heart,
+  'Educação': GraduationCap,
+  'Contas': Receipt,
+  'Outros': MoreHorizontal,
+  'Salário': Briefcase,
+  'Freelance': Laptop,
+  'Investimentos': TrendingUp,
+  'Presente': Gift,
+  // English category names (fallback from API)
   food: Utensils,
   transport: Car,
   entertainment: Gamepad2,
@@ -80,6 +94,8 @@ export default function AI() {
   const [pendingTransaction, setPendingTransaction] = useState<PendingTransaction | null>(null);
   const [editingAmount, setEditingAmount] = useState(false);
   const [editedAmount, setEditedAmount] = useState('');
+  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [schedulePreFill, setSchedulePreFill] = useState<{
     amount?: number;
@@ -429,7 +445,22 @@ export default function AI() {
 
   const updateCategory = (categoryId: string) => {
     if (!pendingTransaction) return;
+    // If clicking "Outros", show custom input
+    if (categoryId === 'Outros') {
+      setShowCustomCategory(true);
+      setCustomCategoryInput('');
+      return;
+    }
+    setShowCustomCategory(false);
     setPendingTransaction({ ...pendingTransaction, category: categoryId });
+  };
+
+  const confirmCustomCategory = () => {
+    if (!pendingTransaction || !customCategoryInput.trim()) return;
+    const customName = customCategoryInput.trim().charAt(0).toUpperCase() + customCategoryInput.trim().slice(1).toLowerCase();
+    setPendingTransaction({ ...pendingTransaction, category: customName });
+    setShowCustomCategory(false);
+    setCustomCategoryInput('');
   };
 
   const updatePaymentMethod = (method: 'debit' | 'credit') => {
@@ -440,6 +471,8 @@ export default function AI() {
   const cancelTransaction = () => {
     setPendingTransaction(null);
     setEditingAmount(false);
+    setShowCustomCategory(false);
+    setCustomCategoryInput('');
     setStatusText('Pronta para ajudar');
     speak('Transação cancelada');
   };
@@ -923,10 +956,73 @@ export default function AI() {
               {/* Category Selection */}
               <div className="mb-6">
                 <label className="text-xs text-muted-foreground mb-3 block">Categoria</label>
+                
+                {/* Custom category input */}
+                <AnimatePresence>
+                  {showCustomCategory && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mb-3 overflow-hidden"
+                    >
+                      <div className="flex gap-2">
+                        <Input
+                          value={customCategoryInput}
+                          onChange={(e) => setCustomCategoryInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && confirmCustomCategory()}
+                          placeholder="Digite a categoria..."
+                          className="h-12 bg-muted/30 border-border rounded-xl"
+                          autoFocus
+                        />
+                        <motion.button
+                          onClick={confirmCustomCategory}
+                          disabled={!customCategoryInput.trim()}
+                          className="px-4 h-12 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 flex items-center justify-center"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Check className="w-5 h-5" />
+                        </motion.button>
+                        <motion.button
+                          onClick={() => setShowCustomCategory(false)}
+                          className="px-4 h-12 rounded-xl bg-muted/50 text-muted-foreground flex items-center justify-center"
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <X className="w-5 h-5" />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Show current custom category if set */}
+                {pendingTransaction.category && !categories.find(c => c.id === pendingTransaction.category) && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="mb-3 p-3 bg-primary/20 border border-primary rounded-xl flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <MoreHorizontal className="w-5 h-5 text-primary" />
+                      <span className="text-sm font-medium text-primary">{pendingTransaction.category}</span>
+                    </div>
+                    <button 
+                      onClick={() => {
+                        setShowCustomCategory(true);
+                        setCustomCategoryInput(pendingTransaction.category);
+                      }}
+                      className="p-1 text-primary hover:text-primary/80"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+
                 <div className="grid grid-cols-4 gap-2">
                   {categories.map((cat) => {
                     const Icon = CATEGORY_ICONS[cat.id] || MoreHorizontal;
                     const isSelected = pendingTransaction.category === cat.id;
+                    const isOutros = cat.id === 'Outros';
                     return (
                       <motion.button
                         key={cat.id}
@@ -935,7 +1031,8 @@ export default function AI() {
                           "flex flex-col items-center gap-1 p-3 rounded-xl border transition-all",
                           isSelected 
                             ? "bg-primary/20 border-primary text-primary" 
-                            : "bg-muted/30 border-transparent text-muted-foreground hover:border-border"
+                            : "bg-muted/30 border-transparent text-muted-foreground hover:border-border",
+                          isOutros && "bg-secondary/10 hover:bg-secondary/20"
                         )}
                         whileTap={{ scale: 0.95 }}
                       >
