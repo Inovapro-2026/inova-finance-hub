@@ -104,6 +104,8 @@ export default function AI() {
     dueDay?: number;
     name?: string;
   } | null>(null);
+  const [installments, setInstallments] = useState(1);
+  const [showInstallments, setShowInstallments] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   // Initialize native TTS with voice selection
@@ -416,10 +418,12 @@ export default function AI() {
       return;
     }
 
-    // Check credit limit if using credit
+    // Check credit limit if using credit (consider installments)
     if (pendingTransaction.type === 'expense' && pendingTransaction.paymentMethod === 'credit') {
       const availableCredit = (user.creditLimit || 5000) - (user.creditUsed || 0);
-      if (finalAmount > availableCredit) {
+      const amountPerInstallment = finalAmount / installments;
+      
+      if (amountPerInstallment > availableCredit) {
         toast.error(`Limite de crédito insuficiente. Disponível: R$ ${availableCredit.toFixed(2)}`);
         return;
       }
@@ -428,12 +432,20 @@ export default function AI() {
     setIsSaving(true);
     
     try {
+      // For installment purchases, only register the first installment amount now
+      // The full amount affects the credit used, but we track it differently
+      const isInstallment = installments > 1 && pendingTransaction.paymentMethod === 'credit';
+      const amountToRegister = isInstallment ? (finalAmount / installments) : finalAmount;
+      const description = isInstallment 
+        ? `${pendingTransaction.description} (1/${installments}x de R$ ${amountToRegister.toFixed(2)})`
+        : pendingTransaction.description;
+
       await addTransaction({
-        amount: finalAmount,
+        amount: amountToRegister,
         type: pendingTransaction.type,
         paymentMethod: pendingTransaction.type === 'expense' ? pendingTransaction.paymentMethod : 'debit',
         category: pendingTransaction.category,
-        description: pendingTransaction.description,
+        description: description,
         date: new Date(),
         userId: user.userId,
       });
@@ -443,14 +455,20 @@ export default function AI() {
       const methodText = pendingTransaction.type === 'expense' 
         ? pendingTransaction.paymentMethod === 'credit' ? ' no crédito' : ' no débito'
         : '';
+      
+      const installmentText = isInstallment 
+        ? ` em ${installments}x de R$ ${amountToRegister.toFixed(2)}`
+        : '';
 
       toast.success('Transação registrada!', {
-        description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}${methodText}`,
+        description: `${pendingTransaction.type === 'expense' ? 'Gasto' : 'Ganho'} de R$ ${finalAmount.toFixed(2)}${methodText}${installmentText}`,
       });
 
-      speak(`Transação registrada com sucesso${methodText}!`);
+      speak(`Transação registrada com sucesso${methodText}${installmentText}!`);
       setPendingTransaction(null);
       setEditingAmount(false);
+      setInstallments(1);
+      setShowInstallments(false);
       setStatusText('Pronta para ajudar');
     } finally {
       setIsSaving(false);
@@ -487,6 +505,8 @@ export default function AI() {
     setEditingAmount(false);
     setShowCustomCategory(false);
     setCustomCategoryInput('');
+    setInstallments(1);
+    setShowInstallments(false);
     setStatusText('Pronta para ajudar');
     speak('Transação cancelada');
   };
@@ -1083,7 +1103,7 @@ export default function AI() {
                 </div>
               </div>
 
-              {/* Insufficient balance warning */}
+              {/* Insufficient balance warning and installment options */}
               {pendingTransaction.type === 'expense' && (() => {
                 const transactionAmount = editingAmount ? parseFloat(editedAmount) : pendingTransaction.amount;
                 const availableInMethod = pendingTransaction.paymentMethod === 'debit' 
@@ -1093,7 +1113,20 @@ export default function AI() {
                 const exceedsCurrentMethod = transactionAmount > availableInMethod;
                 const exceedsAll = transactionAmount > totalAvailable;
                 
-                if (exceedsAll) {
+                // Calculate how many installments needed to fit within credit limit
+                const minInstallmentsNeeded = pendingTransaction.paymentMethod === 'credit' && currentCreditAvailable > 0
+                  ? Math.ceil(transactionAmount / currentCreditAvailable)
+                  : 0;
+                const canUseInstallments = pendingTransaction.paymentMethod === 'credit' && 
+                  exceedsCurrentMethod && 
+                  currentCreditAvailable > 0 &&
+                  minInstallmentsNeeded <= 12;
+                
+                // Calculate amount per installment
+                const amountPerInstallment = transactionAmount / installments;
+                const installmentFitsLimit = amountPerInstallment <= currentCreditAvailable;
+                
+                if (exceedsAll && !canUseInstallments) {
                   return (
                     <div className="mb-4 p-4 rounded-xl bg-destructive/10 border border-destructive/30">
                       <div className="flex items-center gap-2 text-destructive mb-2">
@@ -1103,6 +1136,94 @@ export default function AI() {
                       <p className="text-xs text-muted-foreground">
                         Valor: R$ {transactionAmount.toFixed(2)} | Disponível total: R$ {totalAvailable.toFixed(2)}
                       </p>
+                    </div>
+                  );
+                } else if (exceedsCurrentMethod && canUseInstallments) {
+                  // Show installment option for credit when exceeds limit
+                  return (
+                    <div className="mb-4">
+                      <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/30 mb-3">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2 text-secondary">
+                            <CreditCard className="w-5 h-5" />
+                            <span className="font-medium">Parcelar no crédito?</span>
+                          </div>
+                          <motion.button
+                            onClick={() => {
+                              setShowInstallments(!showInstallments);
+                              if (!showInstallments) {
+                                setInstallments(minInstallmentsNeeded);
+                              }
+                            }}
+                            className={cn(
+                              "px-3 py-1 rounded-lg text-sm font-medium transition-all",
+                              showInstallments 
+                                ? "bg-secondary text-secondary-foreground" 
+                                : "bg-secondary/20 text-secondary"
+                            )}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {showInstallments ? 'Cancelar' : 'Parcelar'}
+                          </motion.button>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Limite: R$ {currentCreditAvailable.toFixed(2)} | Valor: R$ {transactionAmount.toFixed(2)}
+                        </p>
+                        
+                        <AnimatePresence>
+                          {showInstallments && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-3 border-t border-secondary/20">
+                                <label className="text-xs text-muted-foreground mb-2 block">
+                                  Número de parcelas (mín. {minInstallmentsNeeded}x)
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                  {[...Array(12 - minInstallmentsNeeded + 1)].map((_, i) => {
+                                    const numInstallments = minInstallmentsNeeded + i;
+                                    const perInstallment = transactionAmount / numInstallments;
+                                    const fitsLimit = perInstallment <= currentCreditAvailable;
+                                    
+                                    if (!fitsLimit) return null;
+                                    
+                                    return (
+                                      <motion.button
+                                        key={numInstallments}
+                                        onClick={() => setInstallments(numInstallments)}
+                                        className={cn(
+                                          "px-3 py-2 rounded-xl text-sm font-medium transition-all border",
+                                          installments === numInstallments
+                                            ? "bg-secondary text-secondary-foreground border-secondary"
+                                            : "bg-muted/30 text-muted-foreground border-transparent hover:border-secondary/30"
+                                        )}
+                                        whileTap={{ scale: 0.95 }}
+                                      >
+                                        <span className="block">{numInstallments}x</span>
+                                        <span className="block text-[10px] opacity-70">
+                                          R$ {perInstallment.toFixed(2)}
+                                        </span>
+                                      </motion.button>
+                                    );
+                                  })}
+                                </div>
+                                
+                                {installments > 1 && installmentFitsLimit && (
+                                  <div className="mt-3 p-2 rounded-lg bg-success/10 border border-success/30">
+                                    <p className="text-xs text-success text-center">
+                                      ✓ {installments}x de R$ {amountPerInstallment.toFixed(2)} (cabe no limite)
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
                   );
                 } else if (exceedsCurrentMethod) {
@@ -1140,7 +1261,22 @@ export default function AI() {
                   const availableInMethod = pendingTransaction.paymentMethod === 'debit' 
                     ? currentDebitBalance 
                     : currentCreditAvailable;
-                  const canConfirm = pendingTransaction.type === 'income' || transactionAmount <= availableInMethod;
+                  
+                  // Check if installments make it possible
+                  const amountPerInstallment = transactionAmount / installments;
+                  const installmentFitsLimit = pendingTransaction.paymentMethod === 'credit' && 
+                    installments > 1 && 
+                    amountPerInstallment <= currentCreditAvailable;
+                  
+                  const canConfirm = pendingTransaction.type === 'income' || 
+                    transactionAmount <= availableInMethod ||
+                    installmentFitsLimit;
+                  
+                  const buttonText = installmentFitsLimit 
+                    ? `Parcelar ${installments}x` 
+                    : canConfirm 
+                    ? 'Confirmar' 
+                    : 'Sem saldo';
                   
                   return (
                     <motion.button
@@ -1155,7 +1291,7 @@ export default function AI() {
                       whileTap={canConfirm ? { scale: 0.98 } : undefined}
                     >
                       <Check className="w-5 h-5" />
-                      {canConfirm ? 'Confirmar' : 'Sem saldo'}
+                      {buttonText}
                     </motion.button>
                   );
                 })()}
