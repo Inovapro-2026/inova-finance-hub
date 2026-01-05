@@ -378,9 +378,10 @@ export default function AI() {
         const { debitBalance } = await calculateBalance(user.userId, user.initialBalance);
         const realDebitBalance = Math.max(0, debitBalance); // Never show negative
         const creditAvailable = (user.creditLimit || 0) - (user.creditUsed || 0);
+        const realCreditAvailable = Math.max(0, creditAvailable);
         
         setCurrentDebitBalance(realDebitBalance);
-        setCurrentCreditAvailable(Math.max(0, creditAvailable));
+        setCurrentCreditAvailable(realCreditAvailable);
         
         // Auto-select credit if no debit balance available
         const defaultPaymentMethod = realDebitBalance <= 0 && user.hasCreditCard ? 'credit' : 'debit';
@@ -394,7 +395,37 @@ export default function AI() {
         });
         setEditedAmount(args.amount.toString());
         setStatusText('Confirme a transação');
-        speak(`Registrar ${args.type === 'expense' ? 'gasto' : 'ganho'} de ${args.amount} reais em ${args.category}? Escolha se é débito ou crédito.`);
+        
+        // Build intelligent speech based on balance situation
+        if (args.type === 'expense') {
+          const totalAvailable = realDebitBalance + realCreditAvailable;
+          const minInstallments = realCreditAvailable > 0 ? Math.ceil(args.amount / realCreditAvailable) : 0;
+          const canInstallment = minInstallments > 1 && minInstallments <= 12;
+          
+          if (args.amount > totalAvailable && !canInstallment) {
+            // No balance anywhere and can't installment
+            speak(`Atenção! Gasto de ${args.amount} reais em ${args.category}. Você não tem saldo suficiente. Débito zerado e limite de crédito insuficiente.`);
+          } else if (realDebitBalance <= 0 && realCreditAvailable <= 0) {
+            // No balance at all
+            speak(`Atenção! Você não tem saldo no débito nem limite no crédito disponível para registrar esse gasto.`);
+          } else if (realDebitBalance <= 0 && args.amount > realCreditAvailable && canInstallment) {
+            // No debit, exceeds credit but can installment
+            speak(`Gasto de ${args.amount} reais em ${args.category}. Débito zerado. O valor excede seu limite de crédito de ${realCreditAvailable.toFixed(0)} reais, mas você pode parcelar em até ${minInstallments} vezes.`);
+          } else if (realDebitBalance <= 0 && args.amount <= realCreditAvailable) {
+            // No debit but fits in credit
+            speak(`Gasto de ${args.amount} reais em ${args.category}. Débito zerado, usando crédito. Limite disponível: ${realCreditAvailable.toFixed(0)} reais.`);
+          } else if (args.amount > realDebitBalance && user.hasCreditCard && args.amount <= realCreditAvailable) {
+            // Exceeds debit but fits credit
+            speak(`Gasto de ${args.amount} reais em ${args.category}. Seu débito tem apenas ${realDebitBalance.toFixed(0)} reais. Você pode usar o crédito.`);
+          } else if (args.amount > realDebitBalance && user.hasCreditCard && canInstallment) {
+            // Exceeds both but can installment
+            speak(`Gasto de ${args.amount} reais. Débito insuficiente e excede o crédito. Você pode parcelar em ${minInstallments} vezes ou mais.`);
+          } else {
+            speak(`Registrar gasto de ${args.amount} reais em ${args.category}? Escolha débito ou crédito.`);
+          }
+        } else {
+          speak(`Registrar ganho de ${args.amount} reais em ${args.category}?`);
+        }
       } else {
         setStatusText('Pronta para ajudar');
         speak(data.message);
