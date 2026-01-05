@@ -51,7 +51,6 @@ interface PendingTransaction {
 }
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  // Portuguese category names (used in UI)
   'Alimentação': Utensils,
   'Transporte': Car,
   'Lazer': Gamepad2,
@@ -64,19 +63,6 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'Freelance': Laptop,
   'Investimentos': TrendingUp,
   'Presente': Gift,
-  // English category names (fallback from API)
-  food: Utensils,
-  transport: Car,
-  entertainment: Gamepad2,
-  shopping: ShoppingBag,
-  health: Heart,
-  education: GraduationCap,
-  bills: Receipt,
-  other: MoreHorizontal,
-  salary: Briefcase,
-  freelance: Laptop,
-  investment: TrendingUp,
-  gift: Gift,
 };
 
 export default function AI() {
