@@ -714,34 +714,9 @@ export default function AI() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      {/* Animated Tech Background - Purple/Blue Gradient */}
-      <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-purple-950/90 via-blue-950/80 to-indigo-950/90">
-        {/* Soft gradient overlay */}
+      {/* Simple Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-950/90 via-blue-950/80 to-indigo-950/90">
         <div className="absolute inset-0 bg-gradient-to-t from-background/50 via-transparent to-purple-900/30" />
-        
-        {/* Subtle floating orbs - reduced for performance */}
-        <div 
-          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-purple-500/15 rounded-full blur-3xl animate-pulse"
-          style={{ animationDuration: '8s' }}
-        />
-        <div 
-          className="absolute bottom-1/3 right-1/4 w-[300px] h-[300px] bg-blue-500/15 rounded-full blur-3xl animate-pulse"
-          style={{ animationDuration: '10s', animationDelay: '2s' }}
-        />
-        <div 
-          className="absolute top-1/2 left-1/4 w-[250px] h-[250px] bg-indigo-500/10 rounded-full blur-3xl animate-pulse"
-          style={{ animationDuration: '12s', animationDelay: '4s' }}
-        />
-        
-        {/* Light scanning line - only when active */}
-        {(isListening || isSpeaking) && (
-          <motion.div
-            className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-400/40 to-transparent"
-            initial={{ top: '0%' }}
-            animate={{ top: ['0%', '100%', '0%'] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-          />
-        )}
       </div>
       
       {/* Controls - Top Right */}
@@ -793,46 +768,34 @@ export default function AI() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
         >
-          {/* Simple rotating ring */}
-          <motion.div
-            className="absolute inset-0 rounded-full border border-purple-400/30"
-            style={{ width: 160, height: 160, top: -30, left: -30 }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
-          />
-
-          {/* Pulsing Rings - Only when listening or speaking */}
+          {/* Pulsing Rings - Only when speaking */}
           <AnimatePresence>
-            {(isListening || isSpeaking) && (
+            {isSpeaking && (
               <>
-                {/* Simple pulse rings - reduced from 4 to 2 */}
-                {[0, 1].map((i) => (
+                {/* Pulse rings around mic when speaking */}
+                {[0, 1, 2].map((i) => (
                   <motion.div
                     key={`ring-${i}`}
-                    className={cn(
-                      "absolute inset-0 rounded-full border",
-                      isListening ? "border-red-500/40" : "border-blue-400/40"
-                    )}
+                    className="absolute inset-0 rounded-full border border-blue-400/50"
                     initial={{ scale: 1, opacity: 0.6 }}
-                    animate={{ scale: 2 + i * 0.5, opacity: 0 }}
+                    animate={{ scale: 2 + i * 0.4, opacity: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ 
-                      duration: 2, 
+                      duration: 1.5, 
                       repeat: Infinity, 
                       ease: 'easeOut',
-                      delay: i * 0.6
+                      delay: i * 0.4
                     }}
                     style={{ width: 140, height: 140, top: -20, left: -20 }}
                   />
                 ))}
 
-                {/* Simple glow backdrop */}
-                <div 
-                  className={cn(
-                    "absolute inset-0 rounded-full blur-xl transition-colors duration-300",
-                    isListening ? "bg-red-500/30" : "bg-blue-500/30"
-                  )}
+                {/* Glow backdrop when speaking */}
+                <motion.div 
+                  className="absolute inset-0 rounded-full blur-xl bg-blue-500/40"
                   style={{ width: 160, height: 160, top: -30, left: -30 }}
+                  animate={{ opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity }}
                 />
               </>
             )}
