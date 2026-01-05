@@ -126,7 +126,7 @@ export default function Planner() {
         setAdvanceAmountInput(salaryData.advanceAmount.toString());
         setAdvanceDayInput(salaryData.advanceDay?.toString() || '');
         
-        const summary = await calculateMonthlySummary(user.userId, salaryData.salaryAmount, salaryData.salaryDay);
+        const summary = await calculateMonthlySummary(user.userId, salaryData.salaryAmount, salaryData.salaryDay, salaryData.advanceAmount);
         setMonthlySummary({
           totalPayments: summary.totalPayments,
           projectedBalance: summary.projectedBalance,
