@@ -10,6 +10,7 @@ interface RequestBody {
   message: string;
   context: {
     balance: number;
+    debitBalance: number;
     totalIncome: number;
     totalExpense: number;
     creditLimit: number;
@@ -196,7 +197,8 @@ REGRAS CRÍTICAS:
 - NÃO responda texto simples quando há valor pra registrar - USE A FUNÇÃO!
 
 CONTEXTO FINANCEIRO:
-- Saldo: R$ ${context.balance.toFixed(2)}
+- Saldo Débito (conta): R$ ${(context.debitBalance ?? context.balance).toFixed(2)}
+- Saldo Geral: R$ ${context.balance.toFixed(2)}
 - Receitas Mês: R$ ${context.totalIncome.toFixed(2)}
 - Gastos Mês: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
