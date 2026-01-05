@@ -65,6 +65,89 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   'Presente': Gift,
 };
 
+// Rotating Tips Component
+interface TipItem {
+  label: string;
+  icon: React.ElementType;
+  color: string;
+}
+
+function RotatingTip({ 
+  tips, 
+  onTipClick, 
+  disabled 
+}: { 
+  tips: TipItem[]; 
+  onTipClick: (tip: string) => void;
+  disabled: boolean;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % tips.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [tips.length]);
+
+  const currentTip = tips[currentIndex];
+  const Icon = currentTip.icon;
+  
+  const colorClasses: Record<string, string> = {
+    blue: 'bg-blue-500/20 text-blue-400 border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.3)]',
+    red: 'bg-red-500/20 text-red-400 border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.3)]',
+    green: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)]',
+    purple: 'bg-purple-500/20 text-purple-400 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)]',
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.button
+        key={currentIndex}
+        disabled={disabled}
+        onClick={() => onTipClick(currentTip.label)}
+        className={cn(
+          "px-5 py-3 text-sm rounded-full transition-all duration-300 border flex items-center gap-2.5 backdrop-blur-sm",
+          disabled 
+            ? "opacity-50 cursor-not-allowed bg-muted/30 border-transparent" 
+            : cn("cursor-pointer", colorClasses[currentTip.color])
+        )}
+        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.9 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+        whileHover={!disabled ? { scale: 1.05 } : undefined}
+        whileTap={!disabled ? { scale: 0.95 } : undefined}
+      >
+        <motion.div
+          initial={{ rotate: -20 }}
+          animate={{ rotate: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Icon className="w-4 h-4" />
+        </motion.div>
+        <span>{currentTip.label}</span>
+        <motion.div 
+          className="flex gap-1 ml-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {tips.map((_, i) => (
+            <div 
+              key={i} 
+              className={cn(
+                "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                i === currentIndex ? "bg-current scale-110" : "bg-current/30"
+              )}
+            />
+          ))}
+        </motion.div>
+      </motion.button>
+    </AnimatePresence>
+  );
+}
+
 export default function AI() {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
@@ -631,9 +714,114 @@ export default function AI() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
-      {/* Background Effects */}
-      <div className="absolute inset-0 grid-pattern opacity-30" />
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+      {/* Animated Tech Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Grid Pattern */}
+        <div className="absolute inset-0 grid-pattern opacity-20" />
+        
+        {/* Floating Particles */}
+        {[...Array(20)].map((_, i) => (
+          <motion.div
+            key={`particle-${i}`}
+            className="absolute w-1 h-1 bg-primary/40 rounded-full"
+            initial={{ 
+              x: Math.random() * window.innerWidth, 
+              y: Math.random() * window.innerHeight,
+              opacity: 0.2 
+            }}
+            animate={{ 
+              y: [null, Math.random() * -200 - 100],
+              opacity: [0.2, 0.8, 0.2],
+              scale: [1, 1.5, 1]
+            }}
+            transition={{ 
+              duration: 4 + Math.random() * 4, 
+              repeat: Infinity,
+              delay: Math.random() * 2
+            }}
+          />
+        ))}
+        
+        {/* Glowing Orbs */}
+        <motion.div 
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            opacity: [0.1, 0.2, 0.1]
+          }}
+          transition={{ duration: 6, repeat: Infinity }}
+        />
+        <motion.div 
+          className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-secondary/10 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1.2, 1, 1.2],
+            opacity: [0.15, 0.05, 0.15]
+          }}
+          transition={{ duration: 8, repeat: Infinity }}
+        />
+        <motion.div 
+          className="absolute top-1/3 right-1/4 w-[250px] h-[250px] bg-accent/10 rounded-full blur-3xl"
+          animate={{ 
+            scale: [1, 1.3, 1],
+            x: [0, 30, 0],
+            y: [0, -20, 0]
+          }}
+          transition={{ duration: 10, repeat: Infinity }}
+        />
+        
+        {/* Tech Lines - Only when active */}
+        <AnimatePresence>
+          {(isListening || isSpeaking || isLoading) && (
+            <>
+              {/* Horizontal scanning lines */}
+              <motion.div
+                className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
+                initial={{ top: '0%', opacity: 0 }}
+                animate={{ top: ['0%', '100%'], opacity: [0, 1, 0] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+              />
+              <motion.div
+                className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-secondary/40 to-transparent"
+                initial={{ top: '100%', opacity: 0 }}
+                animate={{ top: ['100%', '0%'], opacity: [0, 1, 0] }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 4, repeat: Infinity, ease: 'linear', delay: 1 }}
+              />
+              
+              {/* Corner brackets */}
+              <motion.div
+                className="absolute top-20 left-6 w-12 h-12 border-l-2 border-t-2 border-primary/40"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+              <motion.div
+                className="absolute top-20 right-6 w-12 h-12 border-r-2 border-t-2 border-primary/40"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+              />
+              <motion.div
+                className="absolute bottom-32 left-6 w-12 h-12 border-l-2 border-b-2 border-secondary/40"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+              />
+              <motion.div
+                className="absolute bottom-32 right-6 w-12 h-12 border-r-2 border-b-2 border-secondary/40"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: [0.3, 1, 0.3], scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
+              />
+            </>
+          )}
+        </AnimatePresence>
+      </div>
       
       {/* Controls - Top Right */}
       <div className="absolute top-6 right-6 z-20 flex gap-2">
@@ -646,7 +834,7 @@ export default function AI() {
             toast.info(voiceEnabled ? 'Voz desativada' : 'Voz ativada');
           }}
           className={cn(
-            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all border",
+            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all border backdrop-blur-sm",
             voiceEnabled 
               ? 'bg-primary/20 text-primary border-primary/30' 
               : 'bg-muted/50 text-muted-foreground border-muted'
@@ -658,14 +846,22 @@ export default function AI() {
       </div>
 
       {/* Main Content - Centered Microphone */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="flex-1 flex flex-col items-center justify-center px-6 relative z-10">
         {/* Title */}
         <motion.div
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="text-center mb-12"
         >
-          <h1 className="font-display text-3xl font-bold gradient-text mb-2">INOVA</h1>
+          <motion.h1 
+            className="font-display text-3xl font-bold gradient-text mb-2"
+            animate={isListening || isSpeaking ? { 
+              textShadow: ['0 0 20px hsl(var(--primary) / 0.5)', '0 0 40px hsl(var(--primary) / 0.8)', '0 0 20px hsl(var(--primary) / 0.5)']
+            } : {}}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            INOVA
+          </motion.h1>
           <p className="text-muted-foreground text-sm">Sua Assistente Financeira Inteligente</p>
         </motion.div>
 
@@ -676,33 +872,132 @@ export default function AI() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
         >
+          {/* Rotating Tech Ring - Always visible */}
+          <motion.div
+            className="absolute inset-0 rounded-full border border-primary/20"
+            style={{ width: 180, height: 180, top: -40, left: -40 }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+          >
+            {/* Ring dots */}
+            {[0, 90, 180, 270].map((deg) => (
+              <motion.div
+                key={deg}
+                className="absolute w-2 h-2 bg-primary/60 rounded-full"
+                style={{
+                  top: '50%',
+                  left: '50%',
+                  transform: `rotate(${deg}deg) translateY(-90px) translateX(-50%)`
+                }}
+                animate={{ opacity: [0.3, 1, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity, delay: deg / 360 }}
+              />
+            ))}
+          </motion.div>
+          
+          {/* Counter-rotating ring */}
+          <motion.div
+            className="absolute inset-0 rounded-full border border-dashed border-secondary/15"
+            style={{ width: 220, height: 220, top: -60, left: -60 }}
+            animate={{ rotate: -360 }}
+            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          />
+
           {/* Pulsing Rings - Only when listening or speaking */}
           <AnimatePresence>
             {(isListening || isSpeaking) && (
               <>
+                {/* Electric pulse rings */}
+                {[...Array(4)].map((_, i) => (
+                  <motion.div
+                    key={`ring-${i}`}
+                    className={cn(
+                      "absolute inset-0 rounded-full",
+                      isListening ? "border-2 border-destructive/50" : "border-2 border-secondary/40"
+                    )}
+                    initial={{ scale: 1, opacity: 0.8 }}
+                    animate={{ scale: 2.5 + i * 0.5, opacity: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: 'easeOut',
+                      delay: i * 0.4
+                    }}
+                    style={{ width: 160, height: 160, top: -30, left: -30 }}
+                  />
+                ))}
+                
+                {/* Orbiting particles */}
+                {[...Array(6)].map((_, i) => (
+                  <motion.div
+                    key={`orbit-${i}`}
+                    className="absolute w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: isListening 
+                        ? 'hsl(0 72% 51%)' 
+                        : 'hsl(217 100% 65%)',
+                      boxShadow: isListening 
+                        ? '0 0 10px hsl(0 72% 51%)' 
+                        : '0 0 10px hsl(217 100% 65%)'
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{
+                      opacity: [0.5, 1, 0.5],
+                      rotate: [0, 360],
+                    }}
+                    transition={{ 
+                      rotate: { duration: 2 + i * 0.3, repeat: Infinity, ease: 'linear' },
+                      opacity: { duration: 1, repeat: Infinity }
+                    }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <motion.div
+                      className="absolute"
+                      style={{
+                        width: 120 + i * 15,
+                        height: 120 + i * 15,
+                        top: -60 - i * 7.5 + 3,
+                        left: -60 - i * 7.5 + 3,
+                        transformOrigin: 'center',
+                      }}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 3 + i * 0.5, repeat: Infinity, ease: 'linear' }}
+                    >
+                      <div 
+                        className="absolute w-1.5 h-1.5 rounded-full"
+                        style={{
+                          top: 0,
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          background: isListening 
+                            ? 'hsl(0 72% 51%)' 
+                            : 'hsl(217 100% 65%)',
+                          boxShadow: isListening 
+                            ? '0 0 10px hsl(0 72% 51%)' 
+                            : '0 0 10px hsl(217 100% 65%)'
+                        }}
+                      />
+                    </motion.div>
+                  </motion.div>
+                ))}
+
+                {/* Glowing backdrop */}
                 <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-primary/40"
-                  initial={{ scale: 1, opacity: 0.8 }}
-                  animate={{ scale: 2.5, opacity: 0 }}
+                  className="absolute inset-0 rounded-full blur-2xl"
+                  style={{ 
+                    width: 200, 
+                    height: 200, 
+                    top: -50, 
+                    left: -50,
+                    background: isListening 
+                      ? 'radial-gradient(circle, hsl(0 72% 51% / 0.4) 0%, transparent 70%)' 
+                      : 'radial-gradient(circle, hsl(217 100% 65% / 0.4) 0%, transparent 70%)'
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0.5, 1, 0.5] }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
-                  style={{ width: 160, height: 160, top: -30, left: -30 }}
-                />
-                <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-secondary/30"
-                  initial={{ scale: 1, opacity: 0.6 }}
-                  animate={{ scale: 3, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
-                  style={{ width: 160, height: 160, top: -30, left: -30 }}
-                />
-                <motion.div
-                  className="absolute inset-0 rounded-full border border-primary/20"
-                  initial={{ scale: 1, opacity: 0.4 }}
-                  animate={{ scale: 3.5, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.6 }}
-                  style={{ width: 160, height: 160, top: -30, left: -30 }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
                 />
               </>
             )}
@@ -713,7 +1008,7 @@ export default function AI() {
             onClick={toggleListening}
             disabled={isLoading || pendingTransaction !== null}
             className={cn(
-              "relative w-28 h-28 rounded-full flex items-center justify-center transition-all",
+              "relative w-28 h-28 rounded-full flex items-center justify-center transition-all overflow-hidden",
               isListening 
                 ? "bg-gradient-to-br from-destructive to-destructive/80" 
                 : isSpeaking
@@ -741,28 +1036,48 @@ export default function AI() {
             transition={{ duration: 0.8, repeat: isListening || isSpeaking ? Infinity : 0 }}
             whileTap={{ scale: 0.95 }}
           >
-            {isListening ? (
-              <MicOff className="w-10 h-10 text-white" />
-            ) : (
-              <Mic className="w-10 h-10 text-white" />
-            )}
+            {/* Inner glow effect */}
+            <motion.div
+              className="absolute inset-0 rounded-full bg-white/10"
+              animate={{ opacity: [0.1, 0.3, 0.1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+            
+            {/* Mic icon with animation */}
+            <motion.div
+              animate={isListening ? { scale: [1, 1.1, 1] } : {}}
+              transition={{ duration: 0.5, repeat: Infinity }}
+            >
+              {isListening ? (
+                <MicOff className="w-10 h-10 text-white drop-shadow-lg" />
+              ) : (
+                <Mic className="w-10 h-10 text-white drop-shadow-lg" />
+              )}
+            </motion.div>
           </motion.button>
 
           {/* Sound Waves - When speaking */}
           <AnimatePresence>
             {isSpeaking && (
               <motion.div 
-                className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex gap-1 items-end h-8"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex gap-1.5 items-center h-10"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
               >
-                {[...Array(7)].map((_, i) => (
+                {[...Array(9)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="w-1.5 bg-gradient-to-t from-secondary to-secondary/60 rounded-full"
-                    animate={{ height: [8, 24, 12, 28, 8] }}
-                    transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.08 }}
+                    className="w-1 bg-gradient-to-t from-secondary via-secondary to-secondary/40 rounded-full"
+                    animate={{ 
+                      height: [6, 20 + Math.random() * 16, 8, 24 + Math.random() * 12, 6],
+                      opacity: [0.6, 1, 0.6]
+                    }}
+                    transition={{ 
+                      duration: 0.6 + Math.random() * 0.4, 
+                      repeat: Infinity, 
+                      delay: i * 0.05 
+                    }}
                   />
                 ))}
               </motion.div>
@@ -791,54 +1106,32 @@ export default function AI() {
           ) : statusText}
         </motion.p>
 
-        {/* Quick Tips */}
+        {/* Rotating Quick Tips - One at a time */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mt-10 flex flex-wrap gap-2 justify-center max-w-sm"
+          className="mt-8 h-12 flex items-center justify-center"
         >
-        {[
-            { label: 'Qual meu saldo?', icon: Wallet, color: 'blue' },
-            { label: 'Gastei 50 no almoço', icon: Utensils, color: 'green' },
-            { label: 'Agendar 600 reais dia 20', icon: Calendar, color: 'purple' },
-            { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
-          ].map((item, i) => {
-            const Icon = item.icon;
-            const colorClasses: Record<string, string> = {
-              blue: 'hover:bg-blue-500/20 hover:text-blue-400 hover:border-blue-500/40 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)]',
-              red: 'hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/40 hover:shadow-[0_0_15px_rgba(239,68,68,0.3)]',
-              green: 'hover:bg-emerald-500/20 hover:text-emerald-400 hover:border-emerald-500/40 hover:shadow-[0_0_15px_rgba(16,185,129,0.3)]',
-              purple: 'hover:bg-purple-500/20 hover:text-purple-400 hover:border-purple-500/40 hover:shadow-[0_0_15px_rgba(168,85,247,0.3)]',
-            };
-            return (
-              <motion.button
-                key={item.label}
-                disabled={isLoading || pendingTransaction !== null}
-                onClick={() => {
-                  if (!user) {
-                    toast.error('Faça login para usar');
-                    return;
-                  }
-                  processMessage(item.label);
-                }}
-                className={cn(
-                  "px-4 py-2.5 text-xs bg-muted/30 rounded-full transition-all duration-300 border border-transparent flex items-center gap-2",
-                  isLoading || pendingTransaction 
-                    ? "opacity-50 cursor-not-allowed" 
-                    : cn("cursor-pointer", colorClasses[item.color as keyof typeof colorClasses])
-                )}
-                whileHover={!isLoading && !pendingTransaction ? { scale: 1.05 } : undefined}
-                whileTap={!isLoading && !pendingTransaction ? { scale: 0.95 } : undefined}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 + i * 0.1 }}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                {item.label}
-              </motion.button>
-            );
-          })}
+          <RotatingTip 
+            tips={[
+              { label: 'Qual meu saldo?', icon: Wallet, color: 'blue' },
+              { label: 'Gastei 50 no almoço', icon: Utensils, color: 'green' },
+              { label: 'Agendar 600 reais dia 20', icon: Calendar, color: 'purple' },
+              { label: 'Quanto gastei hoje?', icon: ArrowDown, color: 'red' },
+              { label: 'Me ajuda a economizar', icon: Target, color: 'blue' },
+            ]}
+            onTipClick={(tip) => {
+              if (!user) {
+                toast.error('Faça login para usar');
+                return;
+              }
+              if (!isLoading && !pendingTransaction) {
+                processMessage(tip);
+              }
+            }}
+            disabled={isLoading || pendingTransaction !== null}
+          />
         </motion.div>
       </div>
 
