@@ -54,7 +54,7 @@ export default function Dashboard() {
       user.initialBalance
     );
     setBalance(bal);
-    setDebitBalance(debit);
+    setDebitBalance(Math.max(0, debit)); // Never show negative debit balance
     setTotalIncome(inc);
     setTotalExpense(exp);
 
