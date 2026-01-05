@@ -92,10 +92,7 @@ export default function AI() {
   } | null>(null);
   const [installments, setInstallments] = useState(1);
   const [showInstallments, setShowInstallments] = useState(false);
-  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
-  const [wakeWordListening, setWakeWordListening] = useState(false);
   const recognitionRef = useRef<any>(null);
-  const wakeWordRecognitionRef = useRef<any>(null);
 
   // Initialize native TTS with voice selection
   useEffect(() => {
@@ -130,128 +127,6 @@ export default function AI() {
     stopNativeSpeaking();
     setIsSpeaking(false);
   }, []);
-
-  // Wake word detection - continuous listening for "INOVA"
-  const startWakeWordDetection = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Reconhecimento de voz não suportado');
-      return;
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    
-    recognition.lang = 'pt-BR';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setWakeWordListening(true);
-      console.log('Wake word detection started');
-    };
-
-    recognition.onresult = (event: any) => {
-      const last = event.results.length - 1;
-      const transcript = event.results[last][0].transcript.toLowerCase();
-      
-      // Check for wake word variations
-      const wakeWords = ['inova', 'nova', 'ei nova', 'hey nova', 'oi nova', 'olá nova', 'e aí nova'];
-      const detected = wakeWords.some(word => transcript.includes(word));
-      
-      if (detected && !isListening && !isLoading && !pendingTransaction) {
-        console.log('Wake word detected:', transcript);
-        
-        // Stop wake word detection temporarily
-        recognition.stop();
-        setWakeWordListening(false);
-        
-        // Extract command after wake word
-        let command = '';
-        for (const word of wakeWords) {
-          if (transcript.includes(word)) {
-            const parts = transcript.split(word);
-            command = parts[parts.length - 1].trim();
-            break;
-          }
-        }
-        
-        // Give audio feedback
-        speak('Sim?');
-        
-        // If there's a command after the wake word, process it
-        if (command && command.length > 3) {
-          setTimeout(() => {
-            processMessage(command);
-          }, 500);
-        } else {
-          // Otherwise, start listening for the command
-          setTimeout(() => {
-            toggleListening();
-          }, 800);
-        }
-        
-        // Restart wake word detection after a delay
-        setTimeout(() => {
-          if (wakeWordEnabled) {
-            startWakeWordDetection();
-          }
-        }, 5000);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.log('Wake word error:', event.error);
-      // Restart on certain errors
-      if (event.error === 'no-speech' || event.error === 'aborted') {
-        setTimeout(() => {
-          if (wakeWordEnabled) {
-            startWakeWordDetection();
-          }
-        }, 1000);
-      }
-    };
-
-    recognition.onend = () => {
-      setWakeWordListening(false);
-      // Auto-restart if still enabled
-      if (wakeWordEnabled && !isListening) {
-        setTimeout(() => {
-          startWakeWordDetection();
-        }, 500);
-      }
-    };
-
-    wakeWordRecognitionRef.current = recognition;
-    recognition.start();
-  }, [wakeWordEnabled, isListening, isLoading, pendingTransaction, speak]);
-
-  const stopWakeWordDetection = useCallback(() => {
-    if (wakeWordRecognitionRef.current) {
-      wakeWordRecognitionRef.current.stop();
-      wakeWordRecognitionRef.current = null;
-      setWakeWordListening(false);
-    }
-  }, []);
-
-  // Toggle wake word mode
-  const toggleWakeWord = useCallback(() => {
-    if (wakeWordEnabled) {
-      stopWakeWordDetection();
-      setWakeWordEnabled(false);
-      toast.info('Modo "Ei INOVA" desativado');
-    } else {
-      setWakeWordEnabled(true);
-      toast.success('Modo "Ei INOVA" ativado! Diga "INOVA" para me chamar');
-      setTimeout(() => startWakeWordDetection(), 500);
-    }
-  }, [wakeWordEnabled, startWakeWordDetection, stopWakeWordDetection]);
-
-  // Cleanup wake word on unmount
-  useEffect(() => {
-    return () => {
-      stopWakeWordDetection();
-    };
-  }, [stopWakeWordDetection]);
 
   const getFinancialContext = async (): Promise<FinancialContext> => {
     if (!user) return { 
@@ -762,27 +637,6 @@ export default function AI() {
       
       {/* Controls - Top Right */}
       <div className="absolute top-6 right-6 z-20 flex gap-2">
-        {/* Wake Word Toggle */}
-        <motion.button
-          onClick={toggleWakeWord}
-          className={cn(
-            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all border relative",
-            wakeWordEnabled 
-              ? 'bg-secondary/20 text-secondary border-secondary/30' 
-              : 'bg-muted/50 text-muted-foreground border-muted'
-          )}
-          whileTap={{ scale: 0.95 }}
-          title={wakeWordEnabled ? 'Desativar "Ei INOVA"' : 'Ativar "Ei INOVA"'}
-        >
-          <Mic className="w-5 h-5" />
-          {wakeWordListening && (
-            <motion.div 
-              className="absolute -top-1 -right-1 w-3 h-3 bg-secondary rounded-full"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            />
-          )}
-        </motion.button>
         
         {/* Voice Toggle */}
         <motion.button
@@ -920,7 +774,7 @@ export default function AI() {
         <motion.p
           className={cn(
             "mt-16 text-center font-medium",
-            isListening ? "text-destructive" : isSpeaking ? "text-secondary" : isLoading ? "text-warning" : wakeWordListening ? "text-secondary/70" : "text-muted-foreground"
+            isListening ? "text-destructive" : isSpeaking ? "text-secondary" : isLoading ? "text-warning" : "text-muted-foreground"
           )}
           animate={{ opacity: [0.7, 1, 0.7] }}
           transition={{ duration: 2, repeat: Infinity }}
@@ -933,15 +787,6 @@ export default function AI() {
                 transition={{ duration: 0.5, repeat: Infinity }}
               />
               Processando...
-            </span>
-          ) : wakeWordListening && !isListening ? (
-            <span className="flex items-center gap-2 justify-center">
-              <motion.div
-                className="w-2 h-2 bg-secondary rounded-full"
-                animate={{ scale: [1, 1.3, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
-              />
-              Diga "INOVA" para me chamar
             </span>
           ) : statusText}
         </motion.p>
