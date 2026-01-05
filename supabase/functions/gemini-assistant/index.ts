@@ -197,17 +197,21 @@ REGRAS CRÍTICAS:
 - NÃO responda texto simples quando há valor pra registrar - USE A FUNÇÃO!
 
 CONTEXTO FINANCEIRO:
-- Saldo Débito (conta): R$ ${(context.debitBalance ?? context.balance).toFixed(2)}
-- Saldo Geral: R$ ${context.balance.toFixed(2)}
+- Saldo Corrente (débito): R$ ${Math.max(0, context.debitBalance ?? context.balance).toFixed(2)}
+- Limite de Crédito Disponível: R$ ${creditAvailable.toFixed(2)} de R$ ${(context.creditLimit || 0).toFixed(2)}
 - Receitas Mês: R$ ${context.totalIncome.toFixed(2)}
 - Gastos Mês: R$ ${context.totalExpense.toFixed(2)}
 - Economia: ${context.totalIncome > 0 ? ((context.totalIncome - context.totalExpense) / context.totalIncome * 100).toFixed(0) : 0}%
-- Crédito Disponível: R$ ${creditAvailable.toFixed(2)} de R$ ${(context.creditLimit || 0).toFixed(2)}
-- Fatura vence dia ${context.creditDueDay || 5} (${context.daysUntilDue || 0} dias)
+- Fatura do cartão vence dia ${context.creditDueDay || 5} (${context.daysUntilDue || 0} dias)
 - Salário: R$ ${(context.salaryAmount || 0).toFixed(2)} (dia ${context.salaryDay || 5})
 - Pagamentos do Mês: R$ ${(context.monthlyPaymentsTotal || 0).toFixed(2)}
 - Saldo Previsto: R$ ${(context.projectedBalance || 0).toFixed(2)}
 - Gastos Hoje: R$ ${(context.todayExpenses || 0).toFixed(2)}
+
+IMPORTANTE SOBRE SALDOS:
+- "Saldo Corrente" é o dinheiro na conta (débito) - mostrado no Dashboard
+- "Limite de Crédito" é o limite do cartão de crédito - mostrado na aba Cartão
+- Quando perguntar sobre saldo, sempre mencione AMBOS: corrente (débito) e crédito disponível
 
 PAGAMENTOS AGENDADOS:
 ${scheduledPaymentsInfo}
@@ -381,19 +385,22 @@ ${summaryEmoji} Taxa de economia: ${savingsRate.toFixed(0)}%`;
 
         case 'get_current_balance':
           const creditAvail = (context.creditLimit || 0) - (context.creditUsed || 0);
+          const saldoCorrente = Math.max(0, context.debitBalance ?? context.balance);
           functionResponse = { 
-            balance: context.balance,
+            saldoCorrente: saldoCorrente,
             creditLimit: context.creditLimit,
             creditUsed: context.creditUsed,
             creditAvailable: creditAvail
           };
           
-          responseMessage = `💰 Saldo Débito: R$ ${context.balance.toFixed(2)}
-💳 Crédito: R$ ${creditAvail.toFixed(2)} disponível de R$ ${(context.creditLimit || 0).toFixed(2)}
-📅 Fatura vence dia ${context.creditDueDay} (${context.daysUntilDue} dias)`;
+          responseMessage = `💰 Saldo Corrente (débito): R$ ${saldoCorrente.toFixed(2)}
+💳 Limite de Crédito Disponível: R$ ${creditAvail.toFixed(2)} de R$ ${(context.creditLimit || 0).toFixed(2)}
+📅 Fatura do cartão vence dia ${context.creditDueDay} (${context.daysUntilDue} dias)`;
           
-          if (context.balance < 100) {
-            responseMessage += `\n\n🚨 Atenção: saldo baixo! Controla os gastos! 😰`;
+          if (saldoCorrente < 100 && saldoCorrente > 0) {
+            responseMessage += `\n\n🚨 Atenção: saldo corrente baixo! Controla os gastos! 😰`;
+          } else if (saldoCorrente <= 0) {
+            responseMessage += `\n\n🚨 Saldo corrente zerado! Use o crédito com moderação! 😰`;
           }
           break;
 
