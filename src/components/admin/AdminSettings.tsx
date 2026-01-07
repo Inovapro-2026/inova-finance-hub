@@ -23,6 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { getAdminLogs, AdminLog } from "@/lib/adminDb";
+import { ElevenLabsSettings } from "./ElevenLabsSettings";
 import { 
   Shield, 
   ScrollText, 
@@ -166,6 +167,9 @@ export function AdminSettings() {
 
   return (
     <div className="space-y-6">
+      {/* ElevenLabs Voice Settings */}
+      <ElevenLabsSettings />
+
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>

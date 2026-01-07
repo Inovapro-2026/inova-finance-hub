@@ -71,6 +71,30 @@ export type Database = {
         }
         Relationships: []
       }
+      elevenlabs_usage: {
+        Row: {
+          created_at: string
+          id: string
+          month_year: string
+          tokens_used: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month_year: string
+          tokens_used?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month_year?: string
+          tokens_used?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           created_at: string
@@ -217,6 +241,30 @@ export type Database = {
           specific_month?: string | null
           updated_at?: string
           user_matricula?: number
+        }
+        Relationships: []
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string | null
         }
         Relationships: []
       }
