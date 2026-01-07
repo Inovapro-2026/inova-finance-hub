@@ -37,6 +37,7 @@ export default function Dashboard() {
   useLoginGreeting({
     userId: user?.userId || 0,
     userName: user?.fullName || '',
+    initialBalance: user?.initialBalance || 0,
     enabled: !!user
   });
 

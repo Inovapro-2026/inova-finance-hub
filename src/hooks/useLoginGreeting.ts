@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { speakNative, initNativeTts, hasVoiceSelected } from '@/services/nativeTtsService';
-import { getUserSalaryInfo, calculateDaysUntil } from '@/lib/plannerDb';
+import { getUserSalaryInfo, calculateDaysUntil, getScheduledPayments, type ScheduledPayment } from '@/lib/plannerDb';
+import { calculateBalance, getTransactions } from '@/lib/db';
 import { 
   checkAndSendPaymentReminders, 
   shouldCheckReminders, 
@@ -12,74 +13,166 @@ import {
 interface UseLoginGreetingOptions {
   userId: number;
   userName: string;
+  initialBalance: number;
   enabled?: boolean;
 }
 
 const LAST_GREETING_KEY = 'inovabank_last_greeting';
+const GREETING_SESSION_KEY = 'inovabank_greeting_session';
 
 /**
  * Hook to handle INOVA AI greeting on login
  * Also handles notification permission request and reminders
  */
-export function useLoginGreeting({ userId, userName, enabled = true }: UseLoginGreetingOptions) {
+export function useLoginGreeting({ userId, userName, initialBalance, enabled = true }: UseLoginGreetingOptions) {
   const hasGreeted = useRef(false);
+  const isGreeting = useRef(false);
 
   useEffect(() => {
-    if (!enabled || !userId || hasGreeted.current) return;
+    // Prevent duplicate calls
+    if (!enabled || !userId || hasGreeted.current || isGreeting.current) return;
+
+    // Check session storage to prevent double greetings in same session
+    const sessionGreeted = sessionStorage.getItem(GREETING_SESSION_KEY);
+    if (sessionGreeted === String(userId)) {
+      hasGreeted.current = true;
+      return;
+    }
 
     const performGreeting = async () => {
-      // Check if we already greeted today
-      const lastGreeting = localStorage.getItem(LAST_GREETING_KEY);
-      const today = new Date().toDateString();
-      
-      if (lastGreeting === today) {
-        hasGreeted.current = true;
-        return;
-      }
+      // Lock to prevent concurrent executions
+      if (isGreeting.current) return;
+      isGreeting.current = true;
 
-      // Wait for voice to be ready
-      if (!hasVoiceSelected()) {
-        await new Promise<void>((resolve) => {
-          initNativeTts(() => resolve());
-        });
-      }
-
-      // Get salary info for context
-      const salaryInfo = await getUserSalaryInfo(userId);
-      
-      // Build greeting message
-      let greeting = buildGreetingMessage(userName, salaryInfo);
-      
-      // Mark as greeted
-      hasGreeted.current = true;
-      localStorage.setItem(LAST_GREETING_KEY, today);
-
-      // Small delay to ensure UI is ready
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Speak the greeting
       try {
-        await speakNative(greeting);
-      } catch (err) {
-        console.error('Greeting TTS error:', err);
-      }
+        // Check if we already greeted today
+        const lastGreeting = localStorage.getItem(LAST_GREETING_KEY);
+        const today = new Date().toDateString();
+        
+        if (lastGreeting === today) {
+          hasGreeted.current = true;
+          sessionStorage.setItem(GREETING_SESSION_KEY, String(userId));
+          return;
+        }
 
-      // Check and send notification reminders
-      if (salaryInfo) {
-        await handleNotificationReminders(salaryInfo);
+        // Wait for voice to be ready
+        if (!hasVoiceSelected()) {
+          await new Promise<void>((resolve) => {
+            initNativeTts(() => resolve());
+          });
+        }
+
+        // Get all financial data
+        const [salaryInfo, balanceData, todayTransactions, scheduledPayments] = await Promise.all([
+          getUserSalaryInfo(userId),
+          calculateBalance(userId, initialBalance),
+          getTodayTransactions(userId),
+          getUpcomingPayments(userId)
+        ]);
+        
+        // Build greeting message with financial info
+        const greeting = buildGreetingMessage(
+          userName, 
+          salaryInfo, 
+          balanceData,
+          todayTransactions,
+          scheduledPayments
+        );
+        
+        // Mark as greeted BEFORE speaking to prevent race conditions
+        hasGreeted.current = true;
+        localStorage.setItem(LAST_GREETING_KEY, today);
+        sessionStorage.setItem(GREETING_SESSION_KEY, String(userId));
+
+        // Small delay to ensure UI is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Speak the greeting
+        try {
+          await speakNative(greeting);
+        } catch (err) {
+          console.error('Greeting TTS error:', err);
+        }
+
+        // Check and send notification reminders
+        if (salaryInfo) {
+          await handleNotificationReminders(salaryInfo);
+        }
+      } finally {
+        isGreeting.current = false;
       }
     };
 
     performGreeting();
-  }, [userId, userName, enabled]);
+  }, [userId, userName, initialBalance, enabled]);
 }
 
 /**
- * Build personalized greeting message
+ * Get today's transactions for spending summary
+ */
+async function getTodayTransactions(userId: number): Promise<{ totalSpent: number; count: number }> {
+  const transactions = await getTransactions(userId);
+  const today = new Date().toDateString();
+  
+  const todayExpenses = transactions.filter(t => {
+    const txDate = new Date(t.date).toDateString();
+    return txDate === today && t.type === 'expense';
+  });
+  
+  const totalSpent = todayExpenses.reduce((sum, t) => sum + t.amount, 0);
+  
+  return { totalSpent, count: todayExpenses.length };
+}
+
+/**
+ * Get upcoming payments for today and soon
+ */
+async function getUpcomingPayments(userId: number): Promise<{
+  dueToday: ScheduledPayment[];
+  dueSoon: ScheduledPayment[];
+}> {
+  const payments = await getScheduledPayments(userId);
+  const today = new Date();
+  const todayDay = today.getDate();
+  const currentMonth = today.toISOString().slice(0, 7);
+  
+  const dueToday: ScheduledPayment[] = [];
+  const dueSoon: ScheduledPayment[] = [];
+  
+  payments.forEach(p => {
+    // Check if already paid this month
+    if (p.lastPaidAt) {
+      const lastPaidMonth = p.lastPaidAt.toISOString().slice(0, 7);
+      if (lastPaidMonth === currentMonth) return;
+    }
+    
+    // Check if it's a one-time payment for another month
+    if (!p.isRecurring && p.specificMonth) {
+      const paymentMonth = p.specificMonth.toISOString().slice(0, 7);
+      if (paymentMonth !== currentMonth) return;
+    }
+    
+    const daysUntil = calculateDaysUntil(p.dueDay);
+    
+    if (p.dueDay === todayDay) {
+      dueToday.push(p);
+    } else if (daysUntil <= 3 && daysUntil > 0) {
+      dueSoon.push(p);
+    }
+  });
+  
+  return { dueToday, dueSoon };
+}
+
+/**
+ * Build personalized greeting message with financial summary
  */
 function buildGreetingMessage(
   userName: string, 
-  salaryInfo: { salaryAmount: number; salaryDay: number; advanceAmount: number; advanceDay: number | null } | null
+  salaryInfo: { salaryAmount: number; salaryDay: number; advanceAmount: number; advanceDay: number | null } | null,
+  balanceData: { debitBalance: number; totalExpense: number },
+  todayTransactions: { totalSpent: number; count: number },
+  scheduledPayments: { dueToday: ScheduledPayment[]; dueSoon: ScheduledPayment[] }
 ): string {
   const firstName = userName.split(' ')[0];
   const hour = new Date().getHours();
@@ -95,48 +188,56 @@ function buildGreetingMessage(
 
   let message = `${timeGreeting}, ${firstName}! `;
   
+  // Add balance info
+  const formattedBalance = formatCurrency(Math.max(0, balanceData.debitBalance));
+  message += `Seu saldo disponível é de ${formattedBalance}. `;
+  
+  // Add today's spending
+  if (todayTransactions.totalSpent > 0) {
+    const formattedSpent = formatCurrency(todayTransactions.totalSpent);
+    message += `Hoje você gastou ${formattedSpent}. `;
+  }
+  
+  // Add salary/advance info if it's the day
   if (salaryInfo) {
     const { salaryDay, salaryAmount, advanceDay, advanceAmount } = salaryInfo;
     const today = new Date().getDate();
     
-    // Check if today is salary day
     if (salaryDay === today && salaryAmount > 0) {
       const formatted = formatCurrency(salaryAmount);
-      message += `Hoje é dia ${salaryDay}, seu salário de ${formatted} foi creditado! `;
-    }
-    // Check if today is advance day
-    else if (advanceDay === today && advanceAmount > 0) {
+      message += `Seu salário de ${formatted} foi creditado hoje! `;
+    } else if (advanceDay === today && advanceAmount > 0) {
       const formatted = formatCurrency(advanceAmount);
-      message += `Hoje é dia ${advanceDay}, seu adiantamento de ${formatted} foi creditado! `;
+      message += `Seu adiantamento de ${formatted} foi creditado hoje! `;
     }
-    // Check days until next payment
-    else {
-      const daysUntilSalary = salaryDay ? calculateDaysUntil(salaryDay) : 999;
-      const daysUntilAdvance = advanceDay ? calculateDaysUntil(advanceDay) : 999;
-      
-      if (daysUntilSalary <= 3 && salaryAmount > 0) {
-        const formatted = formatCurrency(salaryAmount);
-        if (daysUntilSalary === 1) {
-          message += `Amanhã é dia de salário! ${formatted} será creditado. `;
-        } else {
-          message += `Faltam ${daysUntilSalary} dias para o seu salário de ${formatted}. `;
-        }
-      } else if (daysUntilAdvance <= 3 && advanceAmount > 0) {
-        const formatted = formatCurrency(advanceAmount);
-        if (daysUntilAdvance === 1) {
-          message += `Amanhã é dia de adiantamento! ${formatted} será creditado. `;
-        } else {
-          message += `Faltam ${daysUntilAdvance} dias para o seu adiantamento de ${formatted}. `;
-        }
-      } else {
-        message += 'Estou aqui para ajudar com suas finanças! ';
-      }
-    }
-  } else {
-    message += 'Estou aqui para ajudar com suas finanças! ';
   }
-
-  message += 'Que posso fazer por você hoje?';
+  
+  // Add payments due today
+  if (scheduledPayments.dueToday.length > 0) {
+    const totalDueToday = scheduledPayments.dueToday.reduce((sum, p) => sum + p.amount, 0);
+    const formattedDue = formatCurrency(totalDueToday);
+    
+    if (scheduledPayments.dueToday.length === 1) {
+      message += `Você tem ${scheduledPayments.dueToday[0].name} para pagar hoje, no valor de ${formattedDue}. `;
+    } else {
+      message += `Você tem ${scheduledPayments.dueToday.length} pagamentos para hoje, totalizando ${formattedDue}. `;
+    }
+  }
+  
+  // Add payments due soon
+  if (scheduledPayments.dueSoon.length > 0 && scheduledPayments.dueToday.length === 0) {
+    const nextPayment = scheduledPayments.dueSoon[0];
+    const daysUntil = calculateDaysUntil(nextPayment.dueDay);
+    const formattedAmount = formatCurrency(nextPayment.amount);
+    
+    if (daysUntil === 1) {
+      message += `Amanhã você tem ${nextPayment.name} para pagar, no valor de ${formattedAmount}. `;
+    } else {
+      message += `Em ${daysUntil} dias você tem ${nextPayment.name} para pagar. `;
+    }
+  }
+  
+  message += 'Que posso fazer por você?';
   
   return message;
 }
