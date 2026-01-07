@@ -6,9 +6,26 @@ import { speakNative, stopSpeaking as stopNativeSpeaking } from './nativeTtsServ
 
 const ISA_GREETING_KEY = 'isa_last_greeting_date';
 const ISA_TAB_GREETED_KEY = 'isa_tab_greeted';
+const ISA_VOICE_ENABLED_KEY = 'isa_voice_enabled';
 
 // Main pages that use ElevenLabs (premium voice)
 const PREMIUM_VOICE_PAGES = ['dashboard', 'planner', 'card', 'goals', 'ai'];
+
+/**
+ * Check if ISA voice is enabled
+ */
+export function isVoiceEnabled(): boolean {
+  const stored = localStorage.getItem(ISA_VOICE_ENABLED_KEY);
+  // Default to true if not set
+  return stored === null ? true : stored === 'true';
+}
+
+/**
+ * Set ISA voice enabled/disabled
+ */
+export function setVoiceEnabled(enabled: boolean): void {
+  localStorage.setItem(ISA_VOICE_ENABLED_KEY, enabled.toString());
+}
 
 /**
  * Convert currency value to natural Brazilian Portuguese speech
@@ -166,6 +183,12 @@ export async function isaSpeak(
   pageType: string = 'other',
   forceNative: boolean = false
 ): Promise<void> {
+  // Check if voice is enabled
+  if (!isVoiceEnabled()) {
+    console.log('ISA: Voice is disabled');
+    return;
+  }
+  
   // Stop any ongoing speech
   stopElevenLabsSpeaking();
   stopNativeSpeaking();

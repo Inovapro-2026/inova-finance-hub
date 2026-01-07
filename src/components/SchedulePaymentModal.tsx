@@ -104,7 +104,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule, preFill }: S
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pb-24"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -117,13 +117,13 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule, preFill }: S
 
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-md mx-auto"
+            className="relative w-full max-w-md mx-auto my-auto"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            <div className="bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[85vh] flex flex-col">
+            <div className="bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-h-[80vh] flex flex-col">
               {/* Header */}
               <div className="bg-gradient-to-r from-primary to-secondary p-5 relative flex-shrink-0">
                 <button

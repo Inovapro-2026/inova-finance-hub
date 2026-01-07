@@ -10,7 +10,9 @@ import {
   ArrowDownRight,
   CreditCard,
   Receipt,
-  ChevronRight
+  ChevronRight,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +21,8 @@ import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useIsaGreeting } from '@/hooks/useIsaGreeting';
+import { isVoiceEnabled, setVoiceEnabled } from '@/services/isaVoiceService';
+import { Switch } from '@/components/ui/switch';
 
 const CHART_COLORS = ['#7A5CFA', '#4A90FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -32,6 +36,7 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
   const [chartData, setChartData] = useState<{ date: string; balance: number }[]>([]);
+  const [voiceEnabled, setVoiceEnabledState] = useState(isVoiceEnabled());
 
   // ISA greeting on dashboard access
   useIsaGreeting({
@@ -39,8 +44,14 @@ export default function Dashboard() {
     userId: user?.userId || 0,
     userName: user?.fullName || '',
     initialBalance: user?.initialBalance || 0,
-    enabled: !!user
+    enabled: !!user && voiceEnabled
   });
+
+  const handleToggleVoice = () => {
+    const newState = !voiceEnabled;
+    setVoiceEnabledState(newState);
+    setVoiceEnabled(newState);
+  };
 
   useEffect(() => {
     if (user) {
@@ -154,11 +165,27 @@ export default function Dashboard() {
       animate="visible"
     >
       {/* Header */}
-      <motion.div variants={itemVariants} className="mb-6">
-        <p className="text-muted-foreground text-sm">Olá,</p>
-        <h1 className="font-display text-2xl font-bold">
-          {user?.fullName.split(' ')[0]} 👋
-        </h1>
+      <motion.div variants={itemVariants} className="mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-muted-foreground text-sm">Olá,</p>
+          <h1 className="font-display text-2xl font-bold">
+            {user?.fullName.split(' ')[0]} 👋
+          </h1>
+        </div>
+        
+        {/* Voice Toggle */}
+        <div className="flex items-center gap-2">
+          {voiceEnabled ? (
+            <Volume2 className="w-4 h-4 text-primary" />
+          ) : (
+            <VolumeX className="w-4 h-4 text-muted-foreground" />
+          )}
+          <Switch
+            checked={voiceEnabled}
+            onCheckedChange={handleToggleVoice}
+            className="data-[state=checked]:bg-primary"
+          />
+        </div>
       </motion.div>
 
       {/* Bento Grid */}
