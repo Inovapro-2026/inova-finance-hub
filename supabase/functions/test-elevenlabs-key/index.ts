@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { apiKey } = await req.json();
+    const { apiKey, testVoice } = await req.json();
 
     if (!apiKey) {
       return new Response(
@@ -20,8 +21,8 @@ serve(async (req) => {
       );
     }
 
-    // Test the API key with a simple user info request
-    const response = await fetch("https://api.elevenlabs.io/v1/user", {
+    // Test the API key with user subscription info
+    const response = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
       method: "GET",
       headers: {
         "xi-api-key": apiKey,
@@ -41,12 +42,46 @@ serve(async (req) => {
       );
     }
 
-    const userData = await response.json();
+    const subscriptionData = await response.json();
+    console.log("Subscription data:", JSON.stringify(subscriptionData));
     
-    // Extract usage info
-    const subscription = userData.subscription || {};
-    const characterCount = subscription.character_count || 0;
-    const characterLimit = subscription.character_limit || 10000;
+    // Extract usage info from subscription endpoint
+    const characterCount = subscriptionData.character_count || 0;
+    const characterLimit = subscriptionData.character_limit || 10000;
+
+    let audioBase64 = null;
+
+    // If testVoice is true, generate a test audio
+    if (testVoice) {
+      const voiceId = "pFZP5JQG7iQjIQuC4Bku"; // Lily - Portuguese voice
+      const testText = "Olá! Teste de voz realizado com sucesso. A chave está funcionando perfeitamente!";
+
+      const ttsResponse = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+        {
+          method: "POST",
+          headers: {
+            "xi-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: testText,
+            model_id: "eleven_multilingual_v2",
+            voice_settings: {
+              stability: 0.5,
+              similarity_boost: 0.75,
+            },
+          }),
+        }
+      );
+
+      if (ttsResponse.ok) {
+        const audioBuffer = await ttsResponse.arrayBuffer();
+        audioBase64 = base64Encode(audioBuffer);
+      } else {
+        console.error("TTS error:", await ttsResponse.text());
+      }
+    }
 
     return new Response(
       JSON.stringify({ 
@@ -56,7 +91,8 @@ serve(async (req) => {
           used: characterCount,
           limit: characterLimit,
           remaining: characterLimit - characterCount
-        }
+        },
+        audio: audioBase64
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

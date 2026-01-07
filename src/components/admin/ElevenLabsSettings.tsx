@@ -38,18 +38,19 @@ export function ElevenLabsSettings() {
 
   useEffect(() => {
     loadSettings();
-    loadMonthlyUsage();
+    loadUsageFromApi();
   }, []);
 
   // Show warning toast when entering if usage > 9000
   useEffect(() => {
-    if (monthlyUsage >= WARNING_THRESHOLD) {
+    const currentUsage = usage?.used || 0;
+    if (currentUsage >= WARNING_THRESHOLD) {
       sonnerToast.warning(
-        "⚠️ Atenção: Você já usou " + monthlyUsage.toLocaleString('pt-BR') + " tokens do plano gratuito do Eleven Labs. Atualize a API Key antes que os créditos acabem!",
+        "⚠️ Atenção: Você já usou " + currentUsage.toLocaleString('pt-BR') + " tokens do plano gratuito do Eleven Labs. Atualize a API Key antes que os créditos acabem!",
         { duration: 10000 }
       );
     }
-  }, [monthlyUsage]);
+  }, [usage]);
 
   const loadSettings = async () => {
     try {
@@ -63,26 +64,32 @@ export function ElevenLabsSettings() {
         setSavedKey(data.value);
         // Mask the key for display
         setApiKey("••••••••" + data.value.slice(-8));
+        // Load usage from API with the saved key
+        loadUsageFromApiWithKey(data.value);
       }
     } catch (error) {
       console.error("Error loading settings:", error);
     }
   };
 
-  const loadMonthlyUsage = async () => {
-    const monthYear = new Date().toISOString().slice(0, 7); // YYYY-MM
-    try {
-      const { data, error } = await supabase
-        .from("elevenlabs_usage")
-        .select("tokens_used")
-        .eq("month_year", monthYear)
-        .maybeSingle();
+  const loadUsageFromApi = async () => {
+    // Will be called after loading saved key
+  };
 
-      if (data) {
-        setMonthlyUsage(data.tokens_used);
+  const loadUsageFromApiWithKey = async (key: string) => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase.functions.invoke("test-elevenlabs-key", {
+        body: { apiKey: key, testVoice: false }
+      });
+
+      if (data?.success && data.usage) {
+        setUsage(data.usage);
       }
     } catch (error) {
-      console.error("Error loading usage:", error);
+      console.error("Error loading usage from API:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -100,9 +107,9 @@ export function ElevenLabsSettings() {
     setTestResult(null);
 
     try {
-      // Test the key first
+      // Test the key with voice test enabled
       const { data, error } = await supabase.functions.invoke("test-elevenlabs-key", {
-        body: { apiKey }
+        body: { apiKey, testVoice: true }
       });
 
       if (error) throw error;
@@ -122,6 +129,13 @@ export function ElevenLabsSettings() {
         setTestResult({ success: true, message: "Teste de voz OK – API Key válida!" });
         setSavedKey(apiKey);
         setUsage(data.usage);
+        
+        // Play test audio if available
+        if (data.audio) {
+          const audioUrl = `data:audio/mpeg;base64,${data.audio}`;
+          const audio = new Audio(audioUrl);
+          audio.play().catch(e => console.error("Audio play error:", e));
+        }
         
         toast({
           title: "Sucesso!",
@@ -176,8 +190,8 @@ export function ElevenLabsSettings() {
     }
   };
 
-  const usagePercent = usage ? (usage.used / usage.limit) * 100 : (monthlyUsage / TOKEN_LIMIT) * 100;
-  const isHighUsage = (usage?.used || monthlyUsage) >= WARNING_THRESHOLD;
+  const usagePercent = usage ? (usage.used / usage.limit) * 100 : 0;
+  const isHighUsage = (usage?.used || 0) >= WARNING_THRESHOLD;
 
   return (
     <motion.div
