@@ -243,29 +243,191 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Effects */}
+      {/* Animated Background Effects */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-secondary/20 rounded-full blur-[100px]" />
+        {/* Floating gradient orbs */}
+        <motion.div 
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px]"
+          animate={{ 
+            scale: [1, 1.1, 1],
+            opacity: [0.2, 0.3, 0.2]
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-secondary/20 rounded-full blur-[100px]"
+          animate={{ 
+            scale: [1, 1.15, 1],
+            opacity: [0.2, 0.25, 0.2]
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
+        <motion.div 
+          className="absolute top-1/2 left-1/4 w-[300px] h-[300px] bg-emerald-500/15 rounded-full blur-[80px]"
+          animate={{ 
+            scale: [1, 1.2, 1],
+            x: [0, 30, 0]
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+        />
+        
+        {/* Floating coins animation */}
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={`coin-${i}`}
+            className="absolute w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg"
+            style={{
+              left: `${15 + i * 15}%`,
+              bottom: '-30px',
+            }}
+            animate={{
+              y: [0, -150, -100],
+              opacity: [0, 1, 0],
+              rotate: [0, 180, 360],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              delay: i * 0.8,
+              ease: "easeOut"
+            }}
+          >
+            <span className="absolute inset-0 flex items-center justify-center text-yellow-800 font-bold text-xs">$</span>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Logo */}
+      {/* Animated Piggy Bank Logo */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 text-center mb-8"
       >
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary">
-            <Shield className="w-7 h-7" />
+        <div className="flex flex-col items-center justify-center gap-4 mb-4">
+          {/* Piggy Bank with filling animation */}
+          <div className="relative">
+            {/* Glow effect */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-primary rounded-2xl blur-xl opacity-50"
+              animate={{ opacity: [0.3, 0.6, 0.3] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+            
+            {/* Main piggy container */}
+            <motion.div 
+              className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-pink-400 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl overflow-hidden"
+              animate={{ 
+                scale: [1, 1.02, 1],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              {/* Piggy face */}
+              <svg viewBox="0 0 64 64" className="w-16 h-16 relative z-10">
+                {/* Ears */}
+                <ellipse cx="16" cy="18" rx="8" ry="10" fill="#f472b6" />
+                <ellipse cx="48" cy="18" rx="8" ry="10" fill="#f472b6" />
+                <ellipse cx="16" cy="18" rx="5" ry="7" fill="#fda4af" />
+                <ellipse cx="48" cy="18" rx="5" ry="7" fill="#fda4af" />
+                
+                {/* Head */}
+                <circle cx="32" cy="32" r="22" fill="#fb7185" />
+                
+                {/* Snout */}
+                <ellipse cx="32" cy="40" rx="10" ry="7" fill="#fda4af" />
+                <circle cx="28" cy="40" r="2" fill="#be185d" />
+                <circle cx="36" cy="40" r="2" fill="#be185d" />
+                
+                {/* Eyes */}
+                <circle cx="24" cy="28" r="4" fill="white" />
+                <circle cx="40" cy="28" r="4" fill="white" />
+                <circle cx="25" cy="28" r="2" fill="#1f2937" />
+                <circle cx="41" cy="28" r="2" fill="#1f2937" />
+                <circle cx="25.5" cy="27" r="0.8" fill="white" />
+                <circle cx="41.5" cy="27" r="0.8" fill="white" />
+                
+                {/* Coin slot on top */}
+                <rect x="26" y="8" width="12" height="3" rx="1.5" fill="#be185d" />
+              </svg>
+              
+              {/* Coins falling into piggy */}
+              <AnimatePresence>
+                {[...Array(3)].map((_, i) => (
+                  <motion.div
+                    key={`piggy-coin-${i}`}
+                    className="absolute w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 shadow-md flex items-center justify-center"
+                    initial={{ y: -40, x: 0, opacity: 1, scale: 1 }}
+                    animate={{ 
+                      y: [- 40, 0, 20],
+                      scale: [1, 1, 0.5],
+                      opacity: [1, 1, 0]
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      delay: i * 1.2,
+                      ease: "easeIn"
+                    }}
+                    style={{ top: '10px' }}
+                  >
+                    <span className="text-yellow-800 font-bold text-[8px]">$</span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              
+              {/* Fill level indicator */}
+              <motion.div
+                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-400/60 to-emerald-300/30"
+                initial={{ height: '0%' }}
+                animate={{ height: ['20%', '60%', '40%', '70%', '50%'] }}
+                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </motion.div>
+            
+            {/* Sparkles around piggy */}
+            {[...Array(4)].map((_, i) => (
+              <motion.div
+                key={`sparkle-${i}`}
+                className="absolute"
+                style={{
+                  top: `${10 + Math.sin(i * 1.5) * 40}%`,
+                  left: `${10 + Math.cos(i * 1.5) * 40}%`,
+                }}
+                animate={{
+                  scale: [0, 1, 0],
+                  opacity: [0, 1, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.5,
+                }}
+              >
+                <Sparkles className="w-4 h-4 text-yellow-400" />
+              </motion.div>
+            ))}
           </div>
-          <h1 className="font-display text-3xl font-bold gradient-text">
-            INOVABANK
-          </h1>
+          
+          {/* Bank name with animated gradient */}
+          <motion.h1 
+            className="font-display text-4xl font-bold"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+          >
+            <span className="bg-gradient-to-r from-primary via-secondary to-emerald-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
+              INOVABANK
+            </span>
+          </motion.h1>
         </div>
-        <p className="text-muted-foreground text-sm">
+        
+        <motion.p 
+          className="text-muted-foreground text-sm"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
           Seu assistente financeiro inteligente
-        </p>
+        </motion.p>
       </motion.div>
 
       <AnimatePresence mode="wait">
