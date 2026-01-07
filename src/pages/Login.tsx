@@ -19,6 +19,7 @@ import {
 type Step = 'matricula' | 'register' | 'success';
 
 export default function Login() {
+  const [introPhase, setIntroPhase] = useState<'logo' | 'tagline' | 'content'>('logo');
   const [step, setStep] = useState<Step>('matricula');
   const [matricula, setMatricula] = useState('');
   const [generatedMatricula, setGeneratedMatricula] = useState('');
@@ -42,6 +43,25 @@ export default function Login() {
   
   const navigate = useNavigate();
   const { login } = useAuth();
+
+  // Intro animation sequence
+  useEffect(() => {
+    // Phase 1: Logo appears (already showing)
+    // Phase 2: After 1.5s, show tagline
+    const taglineTimer = setTimeout(() => {
+      setIntroPhase('tagline');
+    }, 1500);
+    
+    // Phase 3: After 3s total, show content
+    const contentTimer = setTimeout(() => {
+      setIntroPhase('content');
+    }, 3000);
+    
+    return () => {
+      clearTimeout(taglineTimer);
+      clearTimeout(contentTimer);
+    };
+  }, []);
 
   // Check biometric availability on mount
   useEffect(() => {
@@ -271,8 +291,8 @@ export default function Login() {
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 2 }}
         />
         
-        {/* Floating coins animation */}
-        {[...Array(6)].map((_, i) => (
+        {/* Floating coins animation - only show after intro */}
+        {introPhase === 'content' && [...Array(6)].map((_, i) => (
           <motion.div
             key={`coin-${i}`}
             className="absolute w-6 h-6 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg"
@@ -280,6 +300,7 @@ export default function Login() {
               left: `${15 + i * 15}%`,
               bottom: '-30px',
             }}
+            initial={{ opacity: 0 }}
             animate={{
               y: [0, -150, -100],
               opacity: [0, 1, 0],
@@ -297,239 +318,327 @@ export default function Login() {
         ))}
       </div>
 
-      {/* Animated Piggy Bank Logo */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 text-center mb-8"
-      >
-        <div className="flex flex-col items-center justify-center gap-4 mb-4">
-          {/* Piggy Bank with filling animation */}
-          <div className="relative">
-            {/* Glow effect */}
-            <motion.div
-              className="absolute inset-0 bg-gradient-primary rounded-2xl blur-xl opacity-50"
-              animate={{ opacity: [0.3, 0.6, 0.3] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            
-            {/* Main piggy container */}
-            <motion.div 
-              className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-pink-400 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl overflow-hidden"
+      {/* INTRO ANIMATION SEQUENCE */}
+      <AnimatePresence mode="wait">
+        {/* Phase 1: Logo Only */}
+        {introPhase === 'logo' && (
+          <motion.div
+            key="intro-logo"
+            className="relative z-10 flex flex-col items-center justify-center"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1, y: -50 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            {/* Large animated INOVABANK text */}
+            <motion.h1 
+              className="font-display text-5xl md:text-6xl font-bold text-center"
               animate={{ 
                 scale: [1, 1.02, 1],
               }}
               transition={{ duration: 2, repeat: Infinity }}
             >
-              {/* Piggy face */}
-              <svg viewBox="0 0 64 64" className="w-16 h-16 relative z-10">
-                {/* Ears */}
-                <ellipse cx="16" cy="18" rx="8" ry="10" fill="#f472b6" />
-                <ellipse cx="48" cy="18" rx="8" ry="10" fill="#f472b6" />
-                <ellipse cx="16" cy="18" rx="5" ry="7" fill="#fda4af" />
-                <ellipse cx="48" cy="18" rx="5" ry="7" fill="#fda4af" />
-                
-                {/* Head */}
-                <circle cx="32" cy="32" r="22" fill="#fb7185" />
-                
-                {/* Snout */}
-                <ellipse cx="32" cy="40" rx="10" ry="7" fill="#fda4af" />
-                <circle cx="28" cy="40" r="2" fill="#be185d" />
-                <circle cx="36" cy="40" r="2" fill="#be185d" />
-                
-                {/* Eyes */}
-                <circle cx="24" cy="28" r="4" fill="white" />
-                <circle cx="40" cy="28" r="4" fill="white" />
-                <circle cx="25" cy="28" r="2" fill="#1f2937" />
-                <circle cx="41" cy="28" r="2" fill="#1f2937" />
-                <circle cx="25.5" cy="27" r="0.8" fill="white" />
-                <circle cx="41.5" cy="27" r="0.8" fill="white" />
-                
-                {/* Coin slot on top */}
-                <rect x="26" y="8" width="12" height="3" rx="1.5" fill="#be185d" />
-              </svg>
-              
-              {/* Coins falling into piggy */}
-              <AnimatePresence>
-                {[...Array(3)].map((_, i) => (
-                  <motion.div
-                    key={`piggy-coin-${i}`}
-                    className="absolute w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 shadow-md flex items-center justify-center"
-                    initial={{ y: -40, x: 0, opacity: 1, scale: 1 }}
-                    animate={{ 
-                      y: [- 40, 0, 20],
-                      scale: [1, 1, 0.5],
-                      opacity: [1, 1, 0]
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 1.2,
-                      ease: "easeIn"
-                    }}
-                    style={{ top: '10px' }}
-                  >
-                    <span className="text-yellow-800 font-bold text-[8px]">$</span>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              
-              {/* Fill level indicator */}
-              <motion.div
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-400/60 to-emerald-300/30"
-                initial={{ height: '0%' }}
-                animate={{ height: ['20%', '60%', '40%', '70%', '50%'] }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </motion.div>
+              <span className="bg-gradient-to-r from-primary via-secondary to-emerald-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
+                INOVABANK
+              </span>
+            </motion.h1>
             
-            {/* Sparkles around piggy */}
-            {[...Array(4)].map((_, i) => (
-              <motion.div
-                key={`sparkle-${i}`}
-                className="absolute"
-                style={{
-                  top: `${10 + Math.sin(i * 1.5) * 40}%`,
-                  left: `${10 + Math.cos(i * 1.5) * 40}%`,
-                }}
-                animate={{
-                  scale: [0, 1, 0],
-                  opacity: [0, 1, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.5,
-                }}
-              >
-                <Sparkles className="w-4 h-4 text-yellow-400" />
-              </motion.div>
-            ))}
-          </div>
-          
-          {/* Bank name with animated gradient */}
-          <motion.h1 
-            className="font-display text-4xl font-bold"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            <span className="bg-gradient-to-r from-primary via-secondary to-emerald-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
-              INOVABANK
-            </span>
-          </motion.h1>
-        </div>
-        
-        <motion.p 
-          className="text-muted-foreground text-sm"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          Seu assistente financeiro inteligente
-        </motion.p>
-      </motion.div>
-
-      <AnimatePresence mode="wait">
-        {step === 'matricula' && (
-          <motion.div
-            key="matricula"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="relative z-10 w-full max-w-sm"
-          >
-            <GlassCard className="p-6">
-              <h2 className="text-xl font-semibold text-center mb-2">
-                Digite sua matrícula
-              </h2>
-              <p className="text-muted-foreground text-sm text-center mb-6">
-                Use seu ID de 6 dígitos para acessar
-              </p>
-
-              {/* PIN Display */}
-              <div className="flex justify-center gap-2 mb-6">
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className={`w-10 h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-colors ${
-                      matricula[i] 
-                        ? 'border-primary bg-primary/20' 
-                        : 'border-border bg-muted/30'
-                    }`}
-                    animate={matricula[i] ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ duration: 0.2 }}
-                  >
-                    {matricula[i] || ''}
-                  </motion.div>
-                ))}
-              </div>
-
-              <NumericKeypad
-                value={matricula}
-                onChange={setMatricula}
-                onSubmit={handleMatriculaSubmit}
-                maxLength={6}
-              />
-
-              {error && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-destructive text-sm text-center mt-4"
-                >
-                  {error}
-                </motion.p>
-              )}
-
-              {isLoading && (
-                <div className="flex justify-center mt-4">
-                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              )}
-
-              {/* Biometric Login Button */}
-              {biometricAvailable && biometricEnabled && (
-                <div className="mt-4">
-                  <button
-                    onClick={handleBiometricLogin}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-primary hover:opacity-90 transition-opacity text-white font-medium glow-primary"
-                  >
-                    <Fingerprint className="w-5 h-5" />
-                    Entrar com biometria
-                  </button>
-                  <p className="text-xs text-muted-foreground text-center mt-2">
-                    Use sua digital ou Face ID
-                  </p>
-                </div>
-              )}
-
-              {/* Botão de Cadastro */}
-              <div className="mt-6 pt-4 border-t border-border">
-                <button
-                  onClick={() => {
-                    setStep('register');
-                    setError('');
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors text-secondary font-medium"
-                >
-                  <UserPlus className="w-5 h-5" />
-                  Criar conta
-                </button>
-              </div>
-            </GlassCard>
+            {/* Glowing underline */}
+            <motion.div
+              className="h-1 bg-gradient-to-r from-primary via-secondary to-emerald-400 rounded-full mt-4"
+              initial={{ width: 0 }}
+              animate={{ width: 200 }}
+              transition={{ duration: 1, delay: 0.3 }}
+            />
           </motion.div>
         )}
 
-        {step === 'register' && (
+        {/* Phase 2: Tagline */}
+        {introPhase === 'tagline' && (
           <motion.div
-            key="register"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="relative z-10 w-full max-w-sm max-h-[80vh] overflow-y-auto"
+            key="intro-tagline"
+            className="relative z-10 flex flex-col items-center justify-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -30 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
           >
+            <motion.p 
+              className="text-2xl md:text-3xl text-muted-foreground text-center font-medium"
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              Seu assistente financeiro inteligente
+            </motion.p>
+            
+            {/* Loading dots */}
+            <div className="flex gap-2 mt-6">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-3 h-3 rounded-full bg-primary"
+                  animate={{ 
+                    y: [0, -10, 0],
+                    opacity: [0.5, 1, 0.5]
+                  }}
+                  transition={{ 
+                    duration: 0.6, 
+                    repeat: Infinity,
+                    delay: i * 0.15
+                  }}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Phase 3: Full Content */}
+        {introPhase === 'content' && (
+          <motion.div
+            key="intro-content"
+            className="relative z-10 flex flex-col items-center w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Animated Piggy Bank Logo */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-8"
+            >
+              <div className="flex flex-col items-center justify-center gap-4 mb-4">
+                {/* Piggy Bank with filling animation */}
+                <motion.div 
+                  className="relative"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
+                >
+                  {/* Glow effect */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-primary rounded-2xl blur-xl opacity-50"
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                  
+                  {/* Main piggy container */}
+                  <motion.div 
+                    className="relative w-24 h-24 rounded-2xl bg-gradient-to-br from-pink-400 via-pink-500 to-rose-500 flex items-center justify-center shadow-xl overflow-hidden"
+                    animate={{ 
+                      scale: [1, 1.02, 1],
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    {/* Piggy face */}
+                    <svg viewBox="0 0 64 64" className="w-16 h-16 relative z-10">
+                      {/* Ears */}
+                      <ellipse cx="16" cy="18" rx="8" ry="10" fill="#f472b6" />
+                      <ellipse cx="48" cy="18" rx="8" ry="10" fill="#f472b6" />
+                      <ellipse cx="16" cy="18" rx="5" ry="7" fill="#fda4af" />
+                      <ellipse cx="48" cy="18" rx="5" ry="7" fill="#fda4af" />
+                      
+                      {/* Head */}
+                      <circle cx="32" cy="32" r="22" fill="#fb7185" />
+                      
+                      {/* Snout */}
+                      <ellipse cx="32" cy="40" rx="10" ry="7" fill="#fda4af" />
+                      <circle cx="28" cy="40" r="2" fill="#be185d" />
+                      <circle cx="36" cy="40" r="2" fill="#be185d" />
+                      
+                      {/* Eyes */}
+                      <circle cx="24" cy="28" r="4" fill="white" />
+                      <circle cx="40" cy="28" r="4" fill="white" />
+                      <circle cx="25" cy="28" r="2" fill="#1f2937" />
+                      <circle cx="41" cy="28" r="2" fill="#1f2937" />
+                      <circle cx="25.5" cy="27" r="0.8" fill="white" />
+                      <circle cx="41.5" cy="27" r="0.8" fill="white" />
+                      
+                      {/* Coin slot on top */}
+                      <rect x="26" y="8" width="12" height="3" rx="1.5" fill="#be185d" />
+                    </svg>
+                    
+                    {/* Coins falling into piggy */}
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div
+                        key={`piggy-coin-${i}`}
+                        className="absolute w-4 h-4 rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 shadow-md flex items-center justify-center"
+                        initial={{ y: -40, opacity: 0 }}
+                        animate={{ 
+                          y: [-40, 0, 20],
+                          scale: [1, 1, 0.5],
+                          opacity: [1, 1, 0]
+                        }}
+                        transition={{
+                          duration: 1.5,
+                          repeat: Infinity,
+                          delay: i * 1.2,
+                          ease: "easeIn"
+                        }}
+                        style={{ top: '10px' }}
+                      >
+                        <span className="text-yellow-800 font-bold text-[8px]">$</span>
+                      </motion.div>
+                    ))}
+                    
+                    {/* Fill level indicator */}
+                    <motion.div
+                      className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-emerald-400/60 to-emerald-300/30"
+                      initial={{ height: '0%' }}
+                      animate={{ height: ['20%', '60%', '40%', '70%', '50%'] }}
+                      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+                    />
+                  </motion.div>
+                  
+                  {/* Sparkles around piggy */}
+                  {[...Array(4)].map((_, i) => (
+                    <motion.div
+                      key={`sparkle-${i}`}
+                      className="absolute"
+                      style={{
+                        top: `${10 + Math.sin(i * 1.5) * 40}%`,
+                        left: `${10 + Math.cos(i * 1.5) * 40}%`,
+                      }}
+                      animate={{
+                        scale: [0, 1, 0],
+                        opacity: [0, 1, 0],
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        delay: i * 0.5,
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4 text-yellow-400" />
+                    </motion.div>
+                  ))}
+                </motion.div>
+                
+                {/* Bank name with animated gradient */}
+                <motion.h1 
+                  className="font-display text-4xl font-bold"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <span className="bg-gradient-to-r from-primary via-secondary to-emerald-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
+                    INOVABANK
+                  </span>
+                </motion.h1>
+              </div>
+              
+              <motion.p 
+                className="text-muted-foreground text-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                Seu assistente financeiro inteligente
+              </motion.p>
+            </motion.div>
+
+            {/* Login Form */}
+            <AnimatePresence mode="wait">
+              {step === 'matricula' && (
+                <motion.div
+                  key="matricula"
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: 0.3 }}
+                  className="w-full max-w-sm"
+                >
+                  <GlassCard className="p-6">
+                    <h2 className="text-xl font-semibold text-center mb-2">
+                      Digite sua matrícula
+                    </h2>
+                    <p className="text-muted-foreground text-sm text-center mb-6">
+                      Use seu ID de 6 dígitos para acessar
+                    </p>
+
+                    {/* PIN Display */}
+                    <div className="flex justify-center gap-2 mb-6">
+                      {[...Array(6)].map((_, i) => (
+                        <motion.div
+                          key={i}
+                          className={`w-10 h-12 rounded-lg border-2 flex items-center justify-center text-xl font-bold transition-colors ${
+                            matricula[i] 
+                              ? 'border-primary bg-primary/20' 
+                              : 'border-border bg-muted/30'
+                          }`}
+                          animate={matricula[i] ? { scale: [1, 1.1, 1] } : {}}
+                          transition={{ duration: 0.2 }}
+                        >
+                          {matricula[i] || ''}
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    <NumericKeypad
+                      value={matricula}
+                      onChange={setMatricula}
+                      onSubmit={handleMatriculaSubmit}
+                      maxLength={6}
+                    />
+
+                    {error && (
+                      <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-destructive text-sm text-center mt-4"
+                      >
+                        {error}
+                      </motion.p>
+                    )}
+
+                    {isLoading && (
+                      <div className="flex justify-center mt-4">
+                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+
+                    {/* Biometric Login Button */}
+                    {biometricAvailable && biometricEnabled && (
+                      <div className="mt-4">
+                        <button
+                          onClick={handleBiometricLogin}
+                          disabled={isLoading}
+                          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-primary hover:opacity-90 transition-opacity text-white font-medium glow-primary"
+                        >
+                          <Fingerprint className="w-5 h-5" />
+                          Entrar com biometria
+                        </button>
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Use sua digital ou Face ID
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Botão de Cadastro */}
+                    <div className="mt-6 pt-4 border-t border-border">
+                      <button
+                        onClick={() => {
+                          setStep('register');
+                          setError('');
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors text-secondary font-medium"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                        Criar conta
+                      </button>
+                    </div>
+                  </GlassCard>
+                </motion.div>
+              )}
+
+              {step === 'register' && (
+                <motion.div
+                  key="register"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full max-w-sm max-h-[70vh] overflow-y-auto"
+                >
             <GlassCard className="p-6">
               <h2 className="text-xl font-semibold text-center mb-2">
                 Criar conta
@@ -839,17 +948,17 @@ export default function Login() {
                 </motion.p>
               )}
             </GlassCard>
-          </motion.div>
-        )}
+                </motion.div>
+              )}
 
-        {step === 'success' && (
-          <motion.div
-            key="success"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="relative z-10 w-full max-w-sm"
-          >
+              {step === 'success' && (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="w-full max-w-sm"
+                >
             <GlassCard className="p-8 text-center">
               {/* Success Animation */}
               <motion.div
@@ -917,6 +1026,9 @@ export default function Login() {
                 </Button>
               </motion.div>
             </GlassCard>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
