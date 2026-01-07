@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { speakNative, initNativeTts, hasVoiceSelected } from '@/services/nativeTtsService';
+import { speakWithElevenLabs } from '@/services/elevenlabsTtsService';
 import { getUserSalaryInfo, calculateDaysUntil, getScheduledPayments, type ScheduledPayment } from '@/lib/plannerDb';
 import { calculateBalance, getTransactions } from '@/lib/db';
 import { 
@@ -55,12 +55,7 @@ export function useLoginGreeting({ userId, userName, initialBalance, enabled = t
           return;
         }
 
-        // Wait for voice to be ready
-        if (!hasVoiceSelected()) {
-          await new Promise<void>((resolve) => {
-            initNativeTts(() => resolve());
-          });
-        }
+        // ElevenLabs is always ready
 
         // Get all financial data
         const [salaryInfo, balanceData, todayTransactions, scheduledPayments] = await Promise.all([
@@ -87,9 +82,9 @@ export function useLoginGreeting({ userId, userName, initialBalance, enabled = t
         // Small delay to ensure UI is ready
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Speak the greeting
+        // Speak the greeting with ElevenLabs
         try {
-          await speakNative(greeting);
+          await speakWithElevenLabs(greeting);
         } catch (err) {
           console.error('Greeting TTS error:', err);
         }
