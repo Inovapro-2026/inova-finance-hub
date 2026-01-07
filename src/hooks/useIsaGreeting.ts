@@ -11,7 +11,8 @@ import {
   generatePlannerGreeting,
   generateCardGreeting,
   generateProfileGreeting,
-  calculateDaysUntilDay
+  calculateDaysUntilDay,
+  isVoiceEnabled
 } from '@/services/isaVoiceService';
 import { calculateBalance, getTransactions, getGoals } from '@/lib/db';
 import { 
@@ -45,6 +46,12 @@ export function useIsaGreeting({
   const isProcessing = useRef(false);
 
   const speakGreeting = useCallback(async () => {
+    // Check global voice setting
+    if (!isVoiceEnabled()) {
+      console.log('ISA: Voice is globally disabled');
+      return;
+    }
+    
     if (!enabled || !userId || hasSpoken.current || isProcessing.current) return;
     
     // Check if this tab was already greeted in this session
