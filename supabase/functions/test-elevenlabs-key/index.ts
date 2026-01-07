@@ -21,72 +21,102 @@ serve(async (req) => {
       );
     }
 
-    // Test the API key with user subscription info
-    const response = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
+    let characterCount = 0;
+    let characterLimit = 10000;
+    let subscriptionSuccess = false;
+
+    // Try to get subscription info first (may fail for Scribe-only keys)
+    const subscriptionResponse = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
       method: "GET",
       headers: {
         "xi-api-key": apiKey,
       },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("ElevenLabs API error:", response.status, errorText);
+    if (subscriptionResponse.ok) {
+      const subscriptionData = await subscriptionResponse.json();
+      console.log("Subscription data:", JSON.stringify(subscriptionData));
+      characterCount = subscriptionData.character_count || 0;
+      characterLimit = subscriptionData.character_limit || 10000;
+      subscriptionSuccess = true;
+    } else {
+      console.log("Subscription endpoint failed, will test with TTS directly");
+    }
+
+    let audioBase64 = null;
+    let ttsSuccess = false;
+
+    // Always test TTS to validate the key works for voice
+    const voiceId = "pFZP5JQG7iQjIQuC4Bku"; // Lily - Portuguese voice
+    const testText = testVoice 
+      ? "Olá! Teste de voz realizado com sucesso. A chave está funcionando perfeitamente!"
+      : "Teste";
+
+    const ttsResponse = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: testText,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
+      }
+    );
+
+    if (ttsResponse.ok) {
+      ttsSuccess = true;
+      if (testVoice) {
+        const audioBuffer = await ttsResponse.arrayBuffer();
+        audioBase64 = base64Encode(audioBuffer);
+      }
+    } else {
+      const ttsError = await ttsResponse.text();
+      console.error("TTS error:", ttsResponse.status, ttsError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "API Key inválida ou sem créditos",
-          details: errorText
+          error: "API Key inválida ou sem créditos para TTS",
+          details: ttsError
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const subscriptionData = await response.json();
-    console.log("Subscription data:", JSON.stringify(subscriptionData));
-    
-    // Extract usage info from subscription endpoint
-    const characterCount = subscriptionData.character_count || 0;
-    const characterLimit = subscriptionData.character_limit || 10000;
-
-    let audioBase64 = null;
-
-    // If testVoice is true, generate a test audio
-    if (testVoice) {
-      const voiceId = "pFZP5JQG7iQjIQuC4Bku"; // Lily - Portuguese voice
-      const testText = "Olá! Teste de voz realizado com sucesso. A chave está funcionando perfeitamente!";
-
-      const ttsResponse = await fetch(
-        `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-        {
-          method: "POST",
+    // If subscription failed but TTS worked, try to get usage from user info
+    if (!subscriptionSuccess) {
+      try {
+        const userResponse = await fetch("https://api.elevenlabs.io/v1/user", {
+          method: "GET",
           headers: {
             "xi-api-key": apiKey,
-            "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            text: testText,
-            model_id: "eleven_multilingual_v2",
-            voice_settings: {
-              stability: 0.5,
-              similarity_boost: 0.75,
-            },
-          }),
+        });
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          console.log("User data:", JSON.stringify(userData));
+          if (userData.subscription) {
+            characterCount = userData.subscription.character_count || 0;
+            characterLimit = userData.subscription.character_limit || 10000;
+          }
         }
-      );
-
-      if (ttsResponse.ok) {
-        const audioBuffer = await ttsResponse.arrayBuffer();
-        audioBase64 = base64Encode(audioBuffer);
-      } else {
-        console.error("TTS error:", await ttsResponse.text());
+      } catch (e) {
+        console.log("Could not fetch user data, using defaults");
       }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "API Key válida!",
+        message: "API Key válida! TTS funcionando!",
         usage: {
           used: characterCount,
           limit: characterLimit,
