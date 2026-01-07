@@ -40,9 +40,9 @@ serve(async (req) => {
       );
     }
 
-    // Using ElevenLabs API with Brazilian Portuguese voice
-    // Voice: Brian - warm friendly male voice that sounds great speaking Portuguese
-    const voiceId = "nPczCjzI2devNBz1zQrb"; // Brian - friendly voice
+    // Using ElevenLabs API with Brazilian Portuguese female voice
+    // Voice: Laura - warm, friendly female voice perfect for Brazilian Portuguese
+    const voiceId = "FGY2WhTYpPnrIDTdsKH5"; // Laura - friendly female voice
     
     const response = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,

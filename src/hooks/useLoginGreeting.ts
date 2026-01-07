@@ -196,6 +196,23 @@ function buildGreetingMessage(
   if (todayTransactions.totalSpent > 0) {
     const formattedSpent = formatCurrency(todayTransactions.totalSpent);
     message += `Hoje você gastou ${formattedSpent}. `;
+  } else {
+    message += `Você ainda não registrou gastos hoje. `;
+  }
+  
+  // PRIORITIZE: Add payments due today FIRST before salary info
+  if (scheduledPayments.dueToday.length > 0) {
+    const totalDueToday = scheduledPayments.dueToday.reduce((sum, p) => sum + p.amount, 0);
+    const formattedDue = formatCurrency(totalDueToday);
+    
+    if (scheduledPayments.dueToday.length === 1) {
+      message += `Atenção! Você tem ${scheduledPayments.dueToday[0].name} para pagar hoje, no valor de ${formattedDue}. `;
+    } else {
+      const names = scheduledPayments.dueToday.map(p => p.name).join(', ');
+      message += `Atenção! Você tem ${scheduledPayments.dueToday.length} pagamentos para hoje: ${names}. Totalizando ${formattedDue}. `;
+    }
+  } else {
+    message += `Você não tem contas para pagar hoje. `;
   }
   
   // Add salary/advance info if it's the day
@@ -212,19 +229,7 @@ function buildGreetingMessage(
     }
   }
   
-  // Add payments due today
-  if (scheduledPayments.dueToday.length > 0) {
-    const totalDueToday = scheduledPayments.dueToday.reduce((sum, p) => sum + p.amount, 0);
-    const formattedDue = formatCurrency(totalDueToday);
-    
-    if (scheduledPayments.dueToday.length === 1) {
-      message += `Você tem ${scheduledPayments.dueToday[0].name} para pagar hoje, no valor de ${formattedDue}. `;
-    } else {
-      message += `Você tem ${scheduledPayments.dueToday.length} pagamentos para hoje, totalizando ${formattedDue}. `;
-    }
-  }
-  
-  // Add payments due soon
+  // Add payments due soon (only if no payments today)
   if (scheduledPayments.dueSoon.length > 0 && scheduledPayments.dueToday.length === 0) {
     const nextPayment = scheduledPayments.dueSoon[0];
     const daysUntil = calculateDaysUntil(nextPayment.dueDay);
