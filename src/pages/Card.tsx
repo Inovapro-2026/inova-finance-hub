@@ -14,6 +14,7 @@ import {
   registerBiometric,
   disableBiometric
 } from '@/services/biometricService';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 
 export default function Card() {
   const { user, refreshUser } = useAuth();
@@ -77,6 +78,17 @@ export default function Card() {
   const creditLimit = user?.creditLimit || 5000;
   const availableCredit = creditLimit - (user?.creditUsed || 0);
   const creditPercentUsed = ((user?.creditUsed || 0) / creditLimit) * 100;
+
+  // ISA greeting for Card page
+  useIsaGreeting({
+    pageType: 'card',
+    userId: user?.userId || 0,
+    userName: user?.fullName || '',
+    initialBalance: user?.initialBalance || 0,
+    enabled: !!user,
+    creditLimit: creditLimit,
+    creditUsed: user?.creditUsed || 0
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {

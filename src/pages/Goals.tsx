@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { getGoals, addGoal, updateGoal, updateProfile, type Goal } from '@/lib/db';
 import { updateUserSalaryInfo, getUserSalaryInfo } from '@/lib/plannerDb';
 import { toast } from 'sonner';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 
 export default function Goals() {
   const { user, refreshUser, logout } = useAuth();
@@ -30,6 +31,15 @@ export default function Goals() {
     targetAmount: '',
     currentAmount: '',
     deadline: '',
+  });
+
+  // ISA greeting for Goals/Profile page
+  useIsaGreeting({
+    pageType: 'goals',
+    userId: user?.userId || 0,
+    userName: user?.fullName || '',
+    initialBalance: user?.initialBalance || 0,
+    enabled: !!user && activeTab === 'goals'
   });
 
   useEffect(() => {
@@ -584,14 +594,20 @@ export default function Goals() {
             </AnimatePresence>
 
             {goals.length === 0 && (
-              <div className="text-center py-12">
-                <Target className="w-16 h-16 mx-auto text-muted-foreground/30 mb-4" />
-                <p className="text-muted-foreground mb-4">Nenhuma meta criada ainda</p>
+              <div className="flex flex-col items-center justify-center min-h-[40vh] text-center py-12">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+                  <Target className="w-10 h-10 text-primary/50" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma meta criada</h3>
+                <p className="text-muted-foreground mb-6 max-w-xs">
+                  Crie suas metas financeiras e acompanhe seu progresso
+                </p>
                 <Button
                   onClick={() => setShowAddModal(true)}
                   className="bg-gradient-primary"
+                  size="lg"
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-5 h-5 mr-2" />
                   Criar primeira meta
                 </Button>
               </div>

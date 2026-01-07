@@ -18,7 +18,7 @@ import { calculateBalance, getTransactions, type Transaction } from '@/lib/db';
 import { AreaChart, Area, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useLoginGreeting } from '@/hooks/useLoginGreeting';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 
 const CHART_COLORS = ['#7A5CFA', '#4A90FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -33,8 +33,9 @@ export default function Dashboard() {
   const [categoryData, setCategoryData] = useState<{ name: string; value: number }[]>([]);
   const [chartData, setChartData] = useState<{ date: string; balance: number }[]>([]);
 
-  // INOVA AI greeting on login
-  useLoginGreeting({
+  // ISA greeting on dashboard access
+  useIsaGreeting({
+    pageType: 'dashboard',
     userId: user?.userId || 0,
     userName: user?.fullName || '',
     initialBalance: user?.initialBalance || 0,

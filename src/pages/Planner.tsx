@@ -42,10 +42,11 @@ import {
   calculateDaysUntil,
   type ScheduledPayment 
 } from '@/lib/plannerDb';
-import { addTransaction, calculateBalance } from '@/lib/db';
+import { addTransaction, calculateBalance, getGoals } from '@/lib/db';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { speakNative } from '@/services/nativeTtsService';
+import { isaSpeak, currencyToSpeech } from '@/services/isaVoiceService';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 
 const CATEGORY_ICONS: Record<string, string> = {
   aluguel: '🏠',
@@ -98,6 +99,15 @@ export default function Planner() {
   const [pendingPayment, setPendingPayment] = useState<ScheduledPayment | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ISA greeting for Planner page
+  useIsaGreeting({
+    pageType: 'planner',
+    userId: user?.userId || 0,
+    userName: user?.fullName || '',
+    initialBalance: user?.initialBalance || 0,
+    enabled: !!user
+  });
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -145,12 +155,8 @@ export default function Planner() {
           await checkAndCreditAdvance(user.userId, salaryData.advanceAmount, salaryData.advanceDay);
         }
 
-        // Announce today's payments
-        if (todayPayments.length > 0) {
-          const total = todayPayments.reduce((sum, p) => sum + p.amount, 0);
-          const message = `Você tem ${todayPayments.length} ${todayPayments.length === 1 ? 'pagamento agendado' : 'pagamentos agendados'} para hoje, totalizando ${formatCurrency(total)}`;
-          speakNative(message);
-        }
+        // ISA greeting is handled by useIsaGreeting hook
+        // This is just for auto-credit announcements
       }
     } catch (error) {
       console.error('Error loading planner data:', error);
@@ -190,7 +196,7 @@ export default function Planner() {
       toast.success('Salário creditado!', {
         description: `${formatCurrency(salaryAmount)} foi adicionado ao seu saldo`,
       });
-      speakNative(`Hoje é dia ${salaryDay}, seu salário foi creditado no valor de ${formatCurrency(salaryAmount)}`);
+      await isaSpeak(`Hoje é dia ${salaryDay}, seu salário foi creditado no valor de ${currencyToSpeech(salaryAmount)}`, 'planner');
     }
   };
 
@@ -225,7 +231,7 @@ export default function Planner() {
       toast.success('Adiantamento creditado!', {
         description: `${formatCurrency(advanceAmount)} foi adicionado ao seu saldo`,
       });
-      speakNative(`Hoje é dia ${advanceDay}, seu adiantamento foi creditado no valor de ${formatCurrency(advanceAmount)}`);
+      await isaSpeak(`Hoje é dia ${advanceDay}, seu adiantamento foi creditado no valor de ${currencyToSpeech(advanceAmount)}`, 'planner');
     }
   };
 
@@ -324,7 +330,7 @@ export default function Planner() {
 
     await refreshUser();
     toast.success('Pagamento registrado!');
-    speakNative(`Pagamento ${payment.name} de ${formatCurrency(payment.amount)} registrado com sucesso`);
+    await isaSpeak(`Pagamento ${payment.name} de ${currencyToSpeech(payment.amount)} registrado com sucesso`, 'planner');
     setPendingPayment(null);
     loadData();
   };
