@@ -25,7 +25,8 @@ const SPLASH_SHOWN_KEY = 'inovabank_splash_shown';
 function AppRoutes() {
   const location = useLocation();
   const { user } = useAuth();
-  const showNav = user && location.pathname !== '/login';
+  // Hide nav on login and admin pages
+  const showNav = user && location.pathname !== '/login' && location.pathname !== '/admin';
 
   return (
     <>

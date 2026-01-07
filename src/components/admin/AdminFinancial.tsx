@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getFinancialStats } from "@/lib/adminDb";
 import { 
   Wallet, 
@@ -11,8 +19,27 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Clock,
-  Loader2
+  Loader2,
+  Download,
+  PieChart as PieChartIcon,
+  BarChart3,
+  TrendingDown
 } from "lucide-react";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend
+} from "recharts";
 
 interface FinancialStats {
   totalBalance: number;
@@ -27,9 +54,12 @@ interface FinancialStats {
   pendingPayments: Array<{ amount: number; name: string; due_day: number }>;
 }
 
+const CHART_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
 export function AdminFinancial() {
   const [stats, setStats] = useState<FinancialStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewPeriod, setViewPeriod] = useState('month');
 
   useEffect(() => {
     loadStats();
@@ -47,6 +77,47 @@ export function AdminFinancial() {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
+  };
+
+  const formatCompactCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `R$ ${(value / 1000000).toFixed(1)}M`;
+    }
+    if (value >= 1000) {
+      return `R$ ${(value / 1000).toFixed(1)}K`;
+    }
+    return formatCurrency(value);
+  };
+
+  const exportFinancialReport = () => {
+    if (!stats) return;
+    
+    const report = [
+      ['Relatório Financeiro - INOVABANK'],
+      ['Data:', new Date().toLocaleDateString('pt-BR')],
+      [''],
+      ['Resumo Geral'],
+      ['Saldo Total:', formatCurrency(stats.totalBalance)],
+      ['Média por Cliente:', formatCurrency(stats.averageBalance)],
+      ['Salários Creditados (Mês):', formatCurrency(stats.totalSalaryCredits)],
+      ['Pagamentos Planejados:', formatCurrency(stats.totalScheduledPayments)],
+      ['Total de Transações:', stats.totalTransactions],
+      [''],
+      ['Transações de Entrada (Mês)'],
+      ...stats.incomeTransactions.map(t => [t.description || 'Entrada', formatCurrency(Number(t.amount)), t.date]),
+      [''],
+      ['Transações de Saída (Mês)'],
+      ...stats.expenseTransactions.map(t => [t.description || 'Saída', formatCurrency(Number(t.amount)), t.date]),
+    ];
+
+    const csvContent = report.map(row => (Array.isArray(row) ? row.join(',') : row)).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_financeiro_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -97,8 +168,80 @@ export function AdminFinancial() {
     }
   ];
 
+  // Calculate totals for pie chart
+  const totalIncome = stats.incomeTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
+  const totalExpense = stats.expenseTransactions.reduce((acc, t) => acc + Number(t.amount), 0);
+  const totalPaid = stats.paymentLogs.reduce((acc, p) => acc + Number(p.amount), 0);
+
+  const flowPieData = [
+    { name: 'Entradas', value: totalIncome + stats.totalSalaryCredits, color: '#10b981' },
+    { name: 'Saídas', value: totalExpense, color: '#ef4444' },
+    { name: 'Pagamentos', value: totalPaid, color: '#f59e0b' }
+  ].filter(item => item.value > 0);
+
+  // Payments by category
+  const paymentsByCategory = stats.pendingPayments.reduce((acc, p) => {
+    const existing = acc.find(item => item.name === (p.name.split(' ')[0] || 'Outros'));
+    if (existing) {
+      existing.value += Number(p.amount);
+    } else {
+      acc.push({ name: p.name.split(' ')[0] || 'Outros', value: Number(p.amount) });
+    }
+    return acc;
+  }, [] as Array<{ name: string; value: number }>).slice(0, 5);
+
+  // Daily transactions for bar chart
+  const dailyData = [
+    { day: '1-5', entradas: 0, saidas: 0 },
+    { day: '6-10', entradas: 0, saidas: 0 },
+    { day: '11-15', entradas: 0, saidas: 0 },
+    { day: '16-20', entradas: 0, saidas: 0 },
+    { day: '21-25', entradas: 0, saidas: 0 },
+    { day: '26-31', entradas: 0, saidas: 0 }
+  ];
+
+  stats.incomeTransactions.forEach(t => {
+    const day = new Date(t.date).getDate();
+    const index = Math.min(Math.floor((day - 1) / 5), 5);
+    dailyData[index].entradas += Number(t.amount);
+  });
+
+  stats.expenseTransactions.forEach(t => {
+    const day = new Date(t.date).getDate();
+    const index = Math.min(Math.floor((day - 1) / 5), 5);
+    dailyData[index].saidas += Number(t.amount);
+  });
+
   return (
     <div className="space-y-6">
+      {/* Header with actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Visão Financeira</h2>
+          <p className="text-sm text-slate-400">Acompanhe as métricas financeiras do banco</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={viewPeriod} onValueChange={setViewPeriod}>
+            <SelectTrigger className="w-32 bg-slate-800/50 border-slate-700 text-white">
+              <SelectValue placeholder="Período" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectItem value="week">Semana</SelectItem>
+              <SelectItem value="month">Mês</SelectItem>
+              <SelectItem value="year">Ano</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={exportFinancialReport}
+            className="bg-slate-800/50 border-slate-700 text-white hover:bg-slate-700"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
+        </div>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {statCards.map((stat, index) => (
@@ -125,13 +268,171 @@ export function AdminFinancial() {
         ))}
       </div>
 
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Cash Flow Pie Chart */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-white">
+                <PieChartIcon className="w-4 h-4 text-emerald-400" />
+                Fluxo de Caixa
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={flowPieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {flowPieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                    />
+                    <Legend 
+                      wrapperStyle={{ color: '#94a3b8', fontSize: '12px' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Transactions by Period Bar Chart */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-white">
+                <BarChart3 className="w-4 h-4 text-blue-400" />
+                Movimentação por Período
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={11} />
+                    <YAxis 
+                      tickFormatter={formatCompactCurrency}
+                      stroke="#94a3b8" 
+                      fontSize={11} 
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                    />
+                    <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '12px' }} />
+                    <Bar dataKey="entradas" name="Entradas" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="saidas" name="Saídas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="bg-emerald-500/10 border-emerald-500/30">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <ArrowUpCircle className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-sm text-emerald-300">Total de Entradas</p>
+                <p className="text-2xl font-bold text-emerald-400">
+                  {formatCurrency(totalIncome + stats.totalSalaryCredits)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+        >
+          <Card className="bg-red-500/10 border-red-500/30">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                <ArrowDownCircle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <p className="text-sm text-red-300">Total de Saídas</p>
+                <p className="text-2xl font-bold text-red-400">
+                  {formatCurrency(totalExpense + totalPaid)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Card className={`${(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid) >= 0 ? 'bg-blue-500/10 border-blue-500/30' : 'bg-orange-500/10 border-orange-500/30'}`}>
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-full ${(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid) >= 0 ? 'bg-blue-500/20' : 'bg-orange-500/20'} flex items-center justify-center`}>
+                <TrendingUp className={`w-6 h-6 ${(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid) >= 0 ? 'text-blue-400' : 'text-orange-400'}`} />
+              </div>
+              <div>
+                <p className={`text-sm ${(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid) >= 0 ? 'text-blue-300' : 'text-orange-300'}`}>Balanço do Mês</p>
+                <p className={`text-2xl font-bold ${(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid) >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>
+                  {formatCurrency(totalIncome + stats.totalSalaryCredits - totalExpense - totalPaid)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
       {/* Lists Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Salary Credits */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.65 }}
         >
           <Card className="bg-slate-800/50 border-slate-700 h-full">
             <CardHeader className="pb-3">
@@ -171,7 +472,7 @@ export function AdminFinancial() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.7 }}
         >
           <Card className="bg-slate-800/50 border-slate-700 h-full">
             <CardHeader className="pb-3">
@@ -227,7 +528,7 @@ export function AdminFinancial() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.75 }}
         >
           <Card className="bg-slate-800/50 border-slate-700 h-full">
             <CardHeader className="pb-3">
