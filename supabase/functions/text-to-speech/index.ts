@@ -18,7 +18,8 @@ serve(async (req) => {
       throw new Error('Text is required');
     }
 
-    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
+    // Try custom key first, then fall back to connector-managed key
+    const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY_CUSTOM') || Deno.env.get('ELEVENLABS_API_KEY');
     
     if (!ELEVENLABS_API_KEY) {
       throw new Error('ElevenLabs API key not configured');
