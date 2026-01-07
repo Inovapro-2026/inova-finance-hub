@@ -22,6 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
   getAllScheduledPayments, 
@@ -38,8 +45,27 @@ import {
   Trash2,
   CheckCircle,
   SkipForward,
-  Loader2
+  Loader2,
+  Search,
+  Filter,
+  Download,
+  AlertCircle,
+  Clock,
+  DollarSign
 } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 
 interface ScheduledPayment {
   id: string;
@@ -52,13 +78,18 @@ interface ScheduledPayment {
   last_paid_at: string | null;
 }
 
+const CHART_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
 export function AdminPlanning() {
   const [payments, setPayments] = useState<ScheduledPayment[]>([]);
+  const [filteredPayments, setFilteredPayments] = useState<ScheduledPayment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPayment, setSelectedPayment] = useState<ScheduledPayment | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<'all' | 'recurring' | 'one-time'>('all');
   const [editForm, setEditForm] = useState({
     name: "",
     amount: "",
@@ -71,11 +102,36 @@ export function AdminPlanning() {
     loadPayments();
   }, []);
 
+  useEffect(() => {
+    filterPayments();
+  }, [searchQuery, payments, filterType]);
+
   const loadPayments = async () => {
     setIsLoading(true);
     const data = await getAllScheduledPayments();
     setPayments(data as ScheduledPayment[]);
+    setFilteredPayments(data as ScheduledPayment[]);
     setIsLoading(false);
+  };
+
+  const filterPayments = () => {
+    let filtered = [...payments];
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        p.user_matricula.toString().includes(query)
+      );
+    }
+
+    if (filterType === 'recurring') {
+      filtered = filtered.filter(p => p.is_recurring);
+    } else if (filterType === 'one-time') {
+      filtered = filtered.filter(p => !p.is_recurring);
+    }
+
+    setFilteredPayments(filtered);
   };
 
   const formatCurrency = (value: number) => {
@@ -85,8 +141,38 @@ export function AdminPlanning() {
     }).format(value);
   };
 
-  const recurringPayments = payments.filter(p => p.is_recurring);
-  const oneTimePayments = payments.filter(p => !p.is_recurring);
+  const recurringPayments = filteredPayments.filter(p => p.is_recurring);
+  const oneTimePayments = filteredPayments.filter(p => !p.is_recurring);
+
+  const totalRecurring = recurringPayments.reduce((acc, p) => acc + Number(p.amount), 0);
+  const totalOneTime = oneTimePayments.reduce((acc, p) => acc + Number(p.amount), 0);
+  const totalPayments = totalRecurring + totalOneTime;
+
+  // Data for charts
+  const paymentsByDay = Array.from({ length: 31 }, (_, i) => ({
+    day: i + 1,
+    valor: payments.filter(p => p.due_day === i + 1).reduce((acc, p) => acc + Number(p.amount), 0)
+  })).filter(d => d.valor > 0);
+
+  const typeDistribution = [
+    { name: 'Recorrentes', value: totalRecurring, color: '#8b5cf6' },
+    { name: 'Únicos', value: totalOneTime, color: '#3b82f6' }
+  ].filter(d => d.value > 0);
+
+  // Upcoming payments (next 7 days)
+  const today = new Date().getDate();
+  const upcomingPayments = payments.filter(p => {
+    const diff = p.due_day - today;
+    return diff >= 0 && diff <= 7;
+  }).sort((a, b) => a.due_day - b.due_day);
+
+  // Overdue payments
+  const overduePayments = payments.filter(p => {
+    if (!p.last_paid_at) return p.due_day < today;
+    const lastPaid = new Date(p.last_paid_at);
+    const currentMonth = new Date().getMonth();
+    return lastPaid.getMonth() !== currentMonth && p.due_day < today;
+  });
 
   const handleEdit = (payment: ScheduledPayment) => {
     setSelectedPayment(payment);
@@ -197,7 +283,6 @@ export function AdminPlanning() {
 
   const handleSkipPayment = async (payment: ScheduledPayment) => {
     if (!payment.is_recurring) {
-      // For one-time payments, just deactivate
       const success = await deleteScheduledPaymentAdmin(payment.id);
       if (success) {
         await addAdminLog('skip_payment', undefined, { 
@@ -211,7 +296,6 @@ export function AdminPlanning() {
         loadPayments();
       }
     } else {
-      // For recurring, just update last_paid_at to skip this month
       await updateScheduledPayment(payment.id, { 
         last_paid_at: new Date().toISOString() 
       });
@@ -225,6 +309,32 @@ export function AdminPlanning() {
       });
       loadPayments();
     }
+  };
+
+  const exportPayments = () => {
+    const headers = ['Nome', 'Valor', 'Dia Vencimento', 'Matrícula', 'Tipo', 'Último Pagamento'];
+    const rows = payments.map(p => [
+      p.name,
+      p.amount,
+      p.due_day,
+      p.user_matricula,
+      p.is_recurring ? 'Recorrente' : 'Único',
+      p.last_paid_at ? new Date(p.last_paid_at).toLocaleDateString('pt-BR') : 'Nunca'
+    ]);
+
+    const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pagamentos_agendados_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Exportado!",
+      description: "Lista de pagamentos exportada com sucesso."
+    });
   };
 
   const PaymentCard = ({ payment }: { payment: ScheduledPayment }) => (
@@ -310,6 +420,222 @@ export function AdminPlanning() {
 
   return (
     <div className="space-y-6">
+      {/* Stats Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Repeat className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Recorrentes</p>
+                <p className="text-xl font-bold text-purple-400">{recurringPayments.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <CalendarCheck2 className="w-6 h-6 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Únicos</p>
+                <p className="text-xl font-bold text-blue-400">{oneTimePayments.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-orange-400" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Total Mensal</p>
+                <p className="text-lg font-bold text-orange-400">{formatCurrency(totalPayments)}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className={`border ${overduePayments.length > 0 ? 'bg-red-500/10 border-red-500/30' : 'bg-slate-800/50 border-slate-700'}`}>
+            <CardContent className="p-4 flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-xl ${overduePayments.length > 0 ? 'bg-red-500/20' : 'bg-emerald-500/20'} flex items-center justify-center`}>
+                <AlertCircle className={`w-6 h-6 ${overduePayments.length > 0 ? 'text-red-400' : 'text-emerald-400'}`} />
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Atrasados</p>
+                <p className={`text-xl font-bold ${overduePayments.length > 0 ? 'text-red-400' : 'text-emerald-400'}`}>{overduePayments.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Payments by Day */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-white">
+                <CalendarDays className="w-4 h-4 text-purple-400" />
+                Pagamentos por Dia
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={paymentsByDay}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                    <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
+                    <YAxis 
+                      tickFormatter={(value) => `R$${(value/1000).toFixed(0)}K`}
+                      stroke="#94a3b8" 
+                      fontSize={10}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                    />
+                    <Bar dataKey="valor" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Type Distribution */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-white">
+                <Repeat className="w-4 h-4 text-blue-400" />
+                Distribuição por Tipo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={typeDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={70}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {typeDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: number) => formatCurrency(value)}
+                      contentStyle={{ 
+                        backgroundColor: '#1e293b', 
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#fff'
+                      }}
+                    />
+                    <Legend wrapperStyle={{ color: '#94a3b8', fontSize: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Upcoming Payments Alert */}
+      {upcomingPayments.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <Card className="bg-orange-500/10 border-orange-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-orange-400">
+                <Clock className="w-4 h-4" />
+                Próximos 7 Dias ({upcomingPayments.length} pagamentos)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {upcomingPayments.slice(0, 5).map((p, i) => (
+                  <span key={i} className="px-3 py-1.5 bg-orange-500/20 text-orange-300 rounded-lg text-sm">
+                    {p.name} - Dia {p.due_day} ({formatCurrency(Number(p.amount))})
+                  </span>
+                ))}
+                {upcomingPayments.length > 5 && (
+                  <span className="px-3 py-1.5 bg-orange-500/20 text-orange-300 rounded-lg text-sm">
+                    +{upcomingPayments.length - 5} mais
+                  </span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por nome ou matrícula..."
+            className="pl-10 bg-slate-800/50 border-slate-700 text-white"
+          />
+        </div>
+
+        <Select value={filterType} onValueChange={(v) => setFilterType(v as typeof filterType)}>
+          <SelectTrigger className="w-40 bg-slate-800/50 border-slate-700 text-white">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Filtrar" />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-800 border-slate-700">
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="recurring">Recorrentes</SelectItem>
+            <SelectItem value="one-time">Únicos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Button
+          variant="outline"
+          onClick={exportPayments}
+          className="bg-slate-800/50 border-slate-700 text-white hover:bg-slate-700"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Exportar
+        </Button>
+      </div>
+
       {/* Recurring Payments */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader className="pb-3">
@@ -319,7 +645,7 @@ export function AdminPlanning() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             <AnimatePresence>
               {recurringPayments.length === 0 ? (
                 <p className="text-slate-400 text-sm">Nenhum pagamento recorrente cadastrado.</p>
@@ -342,7 +668,7 @@ export function AdminPlanning() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-80 overflow-y-auto">
             <AnimatePresence>
               {oneTimePayments.length === 0 ? (
                 <p className="text-slate-400 text-sm">Nenhum pagamento único cadastrado.</p>
