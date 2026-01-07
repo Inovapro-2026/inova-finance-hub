@@ -637,7 +637,7 @@ export default function Goals() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-end justify-center"
             onClick={() => setShowAddModal(false)}
           >
             <motion.div
@@ -645,7 +645,7 @@ export default function Goals() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25 }}
-              className="w-full max-w-lg bg-card rounded-t-3xl p-6"
+              className="w-full max-w-lg bg-card rounded-t-3xl p-6 max-h-[calc(100dvh-5rem)] overflow-y-auto pb-28"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
