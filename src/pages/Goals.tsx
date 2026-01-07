@@ -714,9 +714,9 @@ export default function Goals() {
                 <Button
                   onClick={handleAddGoal}
                   disabled={!newGoal.title || !newGoal.targetAmount}
-                  className="w-full h-12 bg-gradient-primary hover:opacity-90"
+                  className="w-full h-12 bg-gradient-primary hover:opacity-90 mt-4"
                 >
-                  Criar Meta
+                  Salvar
                 </Button>
               </div>
             </motion.div>

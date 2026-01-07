@@ -858,7 +858,7 @@ export default function AI() {
           <AnimatePresence>
             {isSpeaking && (
               <motion.div 
-                className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex gap-1.5 items-center h-10"
+                className="absolute -bottom-16 left-0 right-0 flex justify-center gap-1 items-end h-10"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -866,15 +866,16 @@ export default function AI() {
                 {[...Array(9)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="w-1 bg-gradient-to-t from-secondary via-secondary to-secondary/40 rounded-full"
+                    className="w-1.5 bg-gradient-to-t from-secondary via-secondary to-secondary/40 rounded-full origin-bottom"
                     animate={{ 
-                      height: [6, 20 + Math.random() * 16, 8, 24 + Math.random() * 12, 6],
-                      opacity: [0.6, 1, 0.6]
+                      scaleY: [0.3, 1, 0.5, 0.8, 0.3],
                     }}
+                    style={{ height: 24 }}
                     transition={{ 
-                      duration: 0.6 + Math.random() * 0.4, 
+                      duration: 0.6 + (i % 3) * 0.15, 
                       repeat: Infinity, 
-                      delay: i * 0.05 
+                      delay: i * 0.08,
+                      ease: "easeInOut"
                     }}
                   />
                 ))}
